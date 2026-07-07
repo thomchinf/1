@@ -116,6 +116,76 @@
       margin-top: var(--space-4);
     }
 
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-2);
+      margin-bottom: var(--space-4);
+    }
+
+    .metric {
+      min-width: 0;
+      border-radius: 10px;
+      background: var(--color-soft);
+      padding: var(--space-3);
+    }
+
+    .metric-value {
+      display: block;
+      color: var(--color-primary-dark);
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .metric-label {
+      display: block;
+      margin-top: var(--space-1);
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .data-list {
+      display: grid;
+      gap: var(--space-2);
+      margin: var(--space-3) 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .data-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-3);
+      border-top: 1px solid var(--color-line);
+      padding-top: var(--space-2);
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .data-list strong {
+      color: var(--color-text);
+      font-size: 14px;
+    }
+
+    .status-banner {
+      display: none;
+      margin-bottom: var(--space-4);
+      border: 1px solid rgba(229, 72, 77, 0.28);
+      border-radius: var(--radius-control);
+      background: #FFF5F5;
+      color: #A8252A;
+      padding: var(--space-3);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .status-banner.is-visible {
+      display: block;
+    }
+
     .placeholder-title {
       margin: 0 0 var(--space-2);
       font-size: 18px;
@@ -226,6 +296,7 @@
 <body>
   <div class="app-shell">
     <main class="app-main">
+      <div id="app-status" class="status-banner" role="status"></div>
       <section id="tab-star" class="tab-panel is-active" aria-labelledby="star-title"></section>
       <section id="tab-pick" class="tab-panel" aria-labelledby="pick-title"></section>
       <section id="tab-my" class="tab-panel" aria-labelledby="my-title"></section>
@@ -248,10 +319,145 @@
   </div>
 
   <script>
+    const DEFAULT_VENUES = [
+      {
+        id: 'v_demo_001',
+        name: '静思自习室',
+        address: '朝阳区建国路88号',
+        hours: '09:00-22:30',
+        price: { amount: 39, unit: '日' },
+        tags: ['有插座', '安静', '大桌子', '22点后营业'],
+        customTags: ['椅子舒服'],
+        notes: '下午三点后人会变多，靠窗区光线最好。',
+        images: [],
+        visitCount: 2,
+        createdAt: '2026-07-06',
+        sceneType: '自习室'
+      },
+      {
+        id: 'v_demo_002',
+        name: '光合作用咖啡',
+        address: '海淀区中关村南路12号',
+        hours: '08:30-21:30',
+        price: { amount: 32, unit: '杯' },
+        tags: ['有咖啡', '靠窗', '有插座'],
+        customTags: ['绿植多'],
+        notes: '适合轻工作，下午可能有聊天声。',
+        images: [],
+        visitCount: 1,
+        createdAt: '2026-07-06',
+        sceneType: '咖啡馆'
+      },
+      {
+        id: 'v_demo_003',
+        name: '一格共享书房',
+        address: '东城区和平里西街9号',
+        hours: '07:30-23:00',
+        price: { amount: 45, unit: '日' },
+        tags: ['安静', '有插座', '大桌子', '22点后营业'],
+        customTags: ['可寄存'],
+        notes: '座位密度低，适合长时间专注。',
+        images: [],
+        visitCount: 0,
+        createdAt: '2026-07-06',
+        sceneType: '自习室'
+      }
+    ];
+
+    const DEFAULT_HISTORY = [
+      {
+        id: 'cr_demo_001',
+        date: '2026-07-06',
+        userLocation: '朝阳区望京',
+        weather: '晴 28°C',
+        venueIds: ['v_demo_001', 'v_demo_002'],
+        chosenVenueId: 'v_demo_001',
+        filterConditions: ['有插座', '安静'],
+        notes: '静思自习室更适合论文冲刺。',
+        photos: []
+      }
+    ];
+
+    const DEFAULT_CURRENT_PICK = {
+      date: '2026-07-07',
+      time: '14:00',
+      userLocation: '',
+      weather: null,
+      selectedVenueIds: [],
+      filterConditions: ['有插座', '安静'],
+      customConditions: [],
+      currentStep: 1,
+      activeVenueIndex: 0,
+      step2Completed: false
+    };
+
+    const Storage = {
+      keys: {
+        venues: 'venues',
+        history: 'history',
+        currentPick: 'currentPick',
+        seeded: 'pickpickSeeded'
+      },
+
+      init() {
+        if (!this.read(this.keys.seeded, false)) {
+          this.saveVenues(DEFAULT_VENUES);
+          this.saveHistory(DEFAULT_HISTORY);
+          this.saveCurrentPick(DEFAULT_CURRENT_PICK);
+          this.write(this.keys.seeded, true);
+        }
+      },
+
+      read(key, fallback) {
+        try {
+          const rawValue = window.localStorage.getItem(key);
+          return rawValue ? JSON.parse(rawValue) : fallback;
+        } catch (error) {
+          UI.showStatus('读取本地数据失败，已使用默认数据。');
+          return fallback;
+        }
+      },
+
+      write(key, value) {
+        try {
+          window.localStorage.setItem(key, JSON.stringify(value));
+          return true;
+        } catch (error) {
+          UI.showStatus('存储空间不足，请删除一些旧照片或浏览器数据后重试。');
+          return false;
+        }
+      },
+
+      loadVenues() {
+        return this.read(this.keys.venues, []);
+      },
+
+      saveVenues(venues) {
+        return this.write(this.keys.venues, venues);
+      },
+
+      loadHistory() {
+        return this.read(this.keys.history, []);
+      },
+
+      saveHistory(history) {
+        return this.write(this.keys.history, history);
+      },
+
+      loadCurrentPick() {
+        return this.read(this.keys.currentPick, { ...DEFAULT_CURRENT_PICK });
+      },
+
+      saveCurrentPick(currentPick) {
+        return this.write(this.keys.currentPick, currentPick);
+      }
+    };
+
     const App = {
       currentTab: 'star',
 
       init() {
+        Storage.init();
         this.bindNavigation();
         this.render();
         this.registerServiceWorker();
@@ -298,16 +504,51 @@
             ${actionHtml}
           </header>
         `;
+      },
+
+      showStatus(message) {
+        const status = document.getElementById('app-status');
+        if (!status) return;
+        status.textContent = message;
+        status.classList.add('is-visible');
+      },
+
+      renderMetrics(metrics) {
+        return `
+          <div class="metric-grid">
+            ${metrics.map((metric) => `
+              <div class="metric">
+                <span class="metric-value">${metric.value}</span>
+                <span class="metric-label">${metric.label}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
       }
     };
 
     const StarManager = {
       render() {
+        const venues = Storage.loadVenues();
+        const previewVenues = venues.slice(0, 3);
         document.getElementById('tab-star').innerHTML = `
           ${UI.renderHeader({ id: 'star-title', text: '收藏库' }, '先把候选自习室和咖啡馆沉淀成自己的地点库。', '<button class="icon-btn" type="button" aria-label="添加地点">+</button>')}
           <section class="panel">
-            <h2 class="placeholder-title">Star 模块检查点</h2>
-            <p class="placeholder-text">下一步会接入 Storage、示例数据、搜索、地点卡片和新增流程。</p>
+            ${UI.renderMetrics([
+              { value: venues.length, label: '已存场地' },
+              { value: venues.filter((venue) => venue.sceneType === '自习室').length, label: '自习室' },
+              { value: venues.filter((venue) => venue.sceneType === '咖啡馆').length, label: '咖啡馆' }
+            ])}
+            <h2 class="placeholder-title">示例场地数据已接入</h2>
+            <p class="placeholder-text">当前阶段只验证 Storage 和数据模型，新增、搜索和详情会在下一步实现。</p>
+            <ul class="data-list" aria-label="示例场地">
+              ${previewVenues.map((venue) => `
+                <li>
+                  <strong>${venue.name}</strong>
+                  <span>${venue.hours} · ${venue.price.amount}/${venue.price.unit}</span>
+                </li>
+              `).join('')}
+            </ul>
           </section>
         `;
       }
@@ -315,11 +556,17 @@
 
     const PickManager = {
       render() {
+        const currentPick = Storage.loadCurrentPick();
         document.getElementById('tab-pick').innerHTML = `
           ${UI.renderHeader({ id: 'pick-title', text: '对比决策' }, '从候选地点里快速筛掉不合适的选择。')}
           <section class="panel">
-            <h2 class="placeholder-title">Pick 流程检查点</h2>
-            <p class="placeholder-text">后续会按 2.1、2.2、2.3 三个步骤逐步实现。</p>
+            ${UI.renderMetrics([
+              { value: currentPick.currentStep, label: '当前步骤' },
+              { value: currentPick.selectedVenueIds.length, label: '候选场地' },
+              { value: currentPick.filterConditions.length, label: '默认条件' }
+            ])}
+            <h2 class="placeholder-title">currentPick 状态已初始化</h2>
+            <p class="placeholder-text">默认计划时间为 ${currentPick.date} ${currentPick.time}。下一步会实现步骤 2.1 的输入和候选场地管理。</p>
           </section>
         `;
       }
@@ -327,11 +574,18 @@
 
     const HistoryManager = {
       render() {
+        const history = Storage.loadHistory();
+        const latestRecord = history[0];
         document.getElementById('tab-my').innerHTML = `
           ${UI.renderHeader({ id: 'my-title', text: '我的记录' }, '回看每一次选择，积累适合自己的场所经验。')}
           <section class="panel">
-            <h2 class="placeholder-title">My 模块检查点</h2>
-            <p class="placeholder-text">后续会实现日历、最近记录、记录本、照片和备注。</p>
+            ${UI.renderMetrics([
+              { value: history.length, label: '历史记录' },
+              { value: latestRecord ? latestRecord.venueIds.length : 0, label: '最近对比' },
+              { value: latestRecord ? latestRecord.filterConditions.length : 0, label: '使用条件' }
+            ])}
+            <h2 class="placeholder-title">历史记录模型已接入</h2>
+            <p class="placeholder-text">${latestRecord ? `${latestRecord.date} 在 ${latestRecord.userLocation} 选择了示例场地。` : '暂无历史记录。'} 日历和记录本会在 My 阶段实现。</p>
           </section>
         `;
       }
