@@ -567,6 +567,26 @@
       font-weight: 900;
     }
 
+    .pick-arrow-btn:disabled {
+      opacity: 0.35;
+    }
+
+    .step2-nav {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      min-height: 32px;
+      margin-bottom: -12px;
+    }
+
+    .step2-nav .pick-arrow-btn:first-child {
+      grid-column: 1;
+    }
+
+    .step2-nav .pick-arrow-btn:last-child {
+      grid-column: 3;
+    }
+
     .date-strip {
       display: flex;
       gap: var(--space-2);
@@ -679,10 +699,14 @@
     }
 
     .station-actions {
-      display: block;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: var(--space-2);
+      align-items: center;
     }
 
-    .station-add-btn {
+    .station-add-btn,
+    .station-step-btn {
       min-height: 28px;
       border: 1px solid #111111;
       border-radius: 0;
@@ -690,6 +714,17 @@
       color: #111111;
       font-size: 12px;
       font-weight: 700;
+    }
+
+    .station-step-btn {
+      border-color: var(--color-primary);
+      color: var(--color-primary-dark);
+    }
+
+    .station-step-btn:disabled {
+      border-color: #A8A8A8;
+      color: #8B8B8B;
+      opacity: 0.65;
     }
 
     .selected-list,
@@ -701,7 +736,7 @@
     .selected-item,
     .star-picker-item {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 1fr auto auto;
       align-items: center;
       gap: 6px;
       border: 1px solid #111111;
@@ -797,6 +832,154 @@
     #tab-pick .step-footer .primary-btn {
       min-height: 40px;
       border-radius: 999px;
+    }
+
+    .step2-shell {
+      display: grid;
+      gap: var(--space-4);
+      min-height: 560px;
+      overflow: hidden;
+    }
+
+    .step2-title {
+      display: block;
+    }
+
+    .step2-title h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 500;
+    }
+
+    .step2-title p {
+      margin: 0;
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .channel-orbit {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-3);
+      align-items: start;
+      padding: var(--space-2) 0;
+    }
+
+    .channel-dot {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      border: 0;
+      background: transparent;
+      color: #111111;
+      padding: 0;
+      text-align: center;
+    }
+
+    .channel-dot em {
+      display: block;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #D8D8D8;
+      font-style: normal;
+    }
+
+    .channel-dot strong {
+      display: block;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .venue-carousel {
+      position: relative;
+      min-height: 210px;
+      margin: 0 calc(var(--space-4) * -1);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 62%, rgba(255,255,255,0.22) 0 54px, transparent 55px),
+        linear-gradient(180deg, #ECECEC 0 44%, #DCDCDC 44% 100%);
+      cursor: grab;
+      user-select: none;
+    }
+
+    .venue-carousel.is-dragging {
+      cursor: grabbing;
+    }
+
+    .venue-carousel::before {
+      position: absolute;
+      left: -15%;
+      right: -15%;
+      top: -58px;
+      height: 140px;
+      border-radius: 50%;
+      background: #F4F4F4;
+      content: "";
+    }
+
+    .venue-cup-row {
+      position: absolute;
+      inset: 42px -98px 0;
+      display: grid;
+      grid-template-columns: repeat(3, 190px);
+      justify-content: center;
+      align-items: end;
+      gap: 36px;
+      transform: translateX(0);
+      transition: transform 0.22s ease;
+      will-change: transform;
+    }
+
+    .venue-carousel.is-dragging .venue-cup-row {
+      transition: none;
+    }
+
+    .venue-cup {
+      position: relative;
+      height: 156px;
+      color: #0F172A;
+      text-align: center;
+      opacity: 0.55;
+    }
+
+    .venue-cup.is-active {
+      opacity: 1;
+    }
+
+    .venue-cup::before {
+      position: absolute;
+      left: 42px;
+      right: 42px;
+      top: 18px;
+      bottom: 8px;
+      border: 1.5px solid #0F172A;
+      border-radius: 26px 26px 36px 36px;
+      content: "";
+    }
+
+    .venue-cup::after {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      top: 50px;
+      border-top: 1px solid #0F172A;
+      content: "";
+    }
+
+    .venue-cup span {
+      position: absolute;
+      left: 36px;
+      right: 36px;
+      top: 88px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 16px;
+      line-height: 1.2;
+      text-decoration: underline;
     }
 
     .helper-text {
@@ -1028,6 +1211,7 @@
       selectedVenueIds: [],
       filterConditions: ['有插座', '安静'],
       customConditions: [],
+      copiedInfo: {},
       currentStep: 1,
       activeVenueIndex: 0,
       step2Completed: false
@@ -1176,7 +1360,7 @@
             <div>
               <p class="eyebrow">PickPick</p>
               <h1 id="${title.id}">${title.text}</h1>
-              <p class="header-copy">${subtitle}</p>
+              ${subtitle ? `<p class="header-copy">${subtitle}</p>` : ''}
             </div>
             ${actionHtml}
           </header>
@@ -1188,6 +1372,13 @@
         if (!status) return;
         status.textContent = message;
         status.className = `status-banner is-visible${type === 'success' ? ' is-success' : ''}`;
+      },
+
+      clearStatus() {
+        const status = document.getElementById('app-status');
+        if (!status) return;
+        status.textContent = '';
+        status.className = 'status-banner';
       },
 
       renderMetrics(metrics) {
@@ -1234,6 +1425,8 @@
 
     const StarManager = {
       query: '',
+      viewStep: 1,
+      activeVenueId: '',
 
       init() {
         document.getElementById('tab-star').addEventListener('click', (event) => this.handleClick(event));
@@ -1243,6 +1436,10 @@
       },
 
       render() {
+        if (this.viewStep === 2) {
+          this.renderStep12();
+          return;
+        }
         const venues = Storage.loadVenues();
         const selectedCount = Storage.loadCurrentPick().selectedVenueIds.length;
         document.getElementById('tab-star').innerHTML = `
@@ -1335,6 +1532,10 @@
       handleClick(event) {
         const trigger = event.target.closest('[data-action]');
         if (!trigger) return;
+        if (trigger.dataset.action === 'open-channel') {
+          PickManager.openChannelByVenueId(this.activeVenueId, trigger.dataset.channel, trigger.dataset.query);
+          return;
+        }
         this.runAction(trigger.dataset.action, trigger.dataset.id);
       },
 
@@ -1345,18 +1546,22 @@
           PickManager.addStarVenue(trigger.dataset.id);
           return;
         }
+        if (trigger.dataset.action === 'pick-new-venue') {
+          StarManager.openForm('', { addToPick: true });
+          return;
+        }
+        if (trigger.dataset.action === 'pick-open-star-list') {
+          PickManager.openStarPickerList();
+          return;
+        }
         this.runAction(trigger.dataset.action, trigger.dataset.id);
       },
 
       handleSubmit(event) {
-        if (event.target.id === 'pick-paste-form') {
+        if (event.target.id === 'channel-link-form') {
           event.preventDefault();
-          const rawText = new FormData(event.target).get('rawText').trim();
-          if (!rawText) {
-            UI.showStatus('粘贴文本为空，无法生成候选场地。');
-            return;
-          }
-          PickManager.addVenueFromPaste(rawText);
+          const formData = new FormData(event.target);
+          PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
           return;
         }
         if (event.target.id !== 'venue-form') return;
@@ -1371,6 +1576,7 @@
           'detail-venue': () => this.openDetail(id),
           'delete-venue': () => this.deleteVenue(id),
           'add-to-pick': () => this.addToPick(id),
+          'back-star-list': () => this.goStep1(),
           'clear-search': () => {
             this.query = '';
             this.render();
@@ -1380,8 +1586,11 @@
         if (actions[action]) actions[action]();
       },
 
-      openForm(venueId = '') {
+      openForm(venueId = '', options = {}) {
         const venue = venueId ? Storage.loadVenues().find((item) => item.id === venueId) : null;
+        const isNewVenue = !venue;
+        const shouldAddToPick = Boolean(options.addToPick);
+        const completeTarget = options.addToPick ? 'pick' : (isNewVenue ? 'star' : '');
         const model = venue || {
           id: '',
           name: '',
@@ -1398,70 +1607,78 @@
           createdAt: '',
           sceneType: '自习室'
         };
+        const fieldsHtml = isNewVenue ? `
+          <label class="field">
+            名称
+            <input name="name" required value="${UI.escape(model.name)}" placeholder="例如 静思自习室">
+          </label>
+        ` : `
+          <div class="form-grid">
+            <label class="field is-full">
+              名称
+              <input name="name" required value="${UI.escape(model.name)}" placeholder="例如 静思自习室">
+            </label>
+            <label class="field is-full">
+              地址
+              <input name="address" value="${UI.escape(model.address)}" placeholder="例如 朝阳区建国路88号">
+            </label>
+            <label class="field">
+              营业时间
+              <input name="hours" value="${UI.escape(model.hours)}" placeholder="09:00-22:30">
+            </label>
+            <label class="field">
+              场景
+              <select name="sceneType">
+                <option value="自习室" ${model.sceneType === '自习室' ? 'selected' : ''}>自习室</option>
+                <option value="咖啡馆" ${model.sceneType === '咖啡馆' ? 'selected' : ''}>咖啡馆</option>
+                <option value="其他" ${model.sceneType === '其他' ? 'selected' : ''}>其他</option>
+              </select>
+            </label>
+            <label class="field">
+              价格
+              <input name="priceAmount" type="number" min="0" step="1" value="${UI.escape(model.price.amount)}" placeholder="39">
+            </label>
+            <label class="field">
+              单位
+              <select name="priceUnit">
+                ${['日', '时', '杯', '次'].map((unit) => `<option value="${unit}" ${model.price.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
+              </select>
+            </label>
+            <label class="field is-full">
+              设施标签
+              <input name="tags" value="${UI.escape(model.tags.join('，'))}" placeholder="有插座，安静，靠窗">
+            </label>
+            <label class="field is-full">
+              自定义标签
+              <input name="customTags" value="${UI.escape(model.customTags.join('，'))}" placeholder="椅子舒服，绿植多">
+            </label>
+            <label class="field is-full">
+              菜单/饮品
+              <textarea name="menuInfo" placeholder="例如 美式 22 元，轻食 36 元，可自带水杯">${UI.escape(model.menuInfo || '')}</textarea>
+            </label>
+            <label class="field is-full">
+              办卡信息
+              <textarea name="membershipInfo" placeholder="例如 日卡 39 元，月卡 599 元，10 次卡 399 元">${UI.escape(model.membershipInfo || '')}</textarea>
+            </label>
+            <label class="field is-full">
+              备注
+              <textarea name="notes" placeholder="记录适合自己的观察">${UI.escape(model.notes)}</textarea>
+            </label>
+          </div>
+        `;
 
         UI.openModal(`
           <div class="modal-header">
             <div>
               <p class="eyebrow">Star</p>
-              <h2 class="modal-title">${venue ? '编辑场地' : '添加场地'}</h2>
+              <h2 class="modal-title">${venue ? '编辑场地' : '新建地点'}</h2>
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
-          <form id="venue-form" class="venue-form" data-id="${UI.escape(model.id)}">
-            <div class="form-grid">
-              <label class="field is-full">
-                名称
-                <input name="name" required value="${UI.escape(model.name)}" placeholder="例如 静思自习室">
-              </label>
-              <label class="field is-full">
-                地址
-                <input name="address" value="${UI.escape(model.address)}" placeholder="例如 朝阳区建国路88号">
-              </label>
-              <label class="field">
-                营业时间
-                <input name="hours" value="${UI.escape(model.hours)}" placeholder="09:00-22:30">
-              </label>
-              <label class="field">
-                场景
-                <select name="sceneType">
-                  <option value="自习室" ${model.sceneType === '自习室' ? 'selected' : ''}>自习室</option>
-                  <option value="咖啡馆" ${model.sceneType === '咖啡馆' ? 'selected' : ''}>咖啡馆</option>
-                  <option value="其他" ${model.sceneType === '其他' ? 'selected' : ''}>其他</option>
-                </select>
-              </label>
-              <label class="field">
-                价格
-                <input name="priceAmount" type="number" min="0" step="1" value="${UI.escape(model.price.amount)}" placeholder="39">
-              </label>
-              <label class="field">
-                单位
-                <select name="priceUnit">
-                  ${['日', '时', '杯', '次'].map((unit) => `<option value="${unit}" ${model.price.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
-                </select>
-              </label>
-              <label class="field is-full">
-                设施标签
-                <input name="tags" value="${UI.escape(model.tags.join('，'))}" placeholder="有插座，安静，靠窗">
-              </label>
-              <label class="field is-full">
-                自定义标签
-                <input name="customTags" value="${UI.escape(model.customTags.join('，'))}" placeholder="椅子舒服，绿植多">
-              </label>
-              <label class="field is-full">
-                菜单/饮品
-                <textarea name="menuInfo" placeholder="例如 美式 22 元，轻食 36 元，可自带水杯">${UI.escape(model.menuInfo || '')}</textarea>
-              </label>
-              <label class="field is-full">
-                办卡信息
-                <textarea name="membershipInfo" placeholder="例如 日卡 39 元，月卡 599 元，10 次卡 399 元">${UI.escape(model.membershipInfo || '')}</textarea>
-              </label>
-              <label class="field is-full">
-                备注
-                <textarea name="notes" placeholder="记录适合自己的观察">${UI.escape(model.notes)}</textarea>
-              </label>
-            </div>
+          <form id="venue-form" class="venue-form" data-id="${UI.escape(model.id)}" data-add-to-pick="${shouldAddToPick ? 'true' : 'false'}" data-complete-target="${completeTarget}">
+            ${fieldsHtml}
             <div class="form-actions">
-              <button class="primary-btn" type="submit">保存场地</button>
+              <button class="primary-btn" type="submit">${isNewVenue ? '保存并完善信息' : '保存场地'}</button>
               <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
             </div>
           </form>
@@ -1499,24 +1716,25 @@
         const venues = Storage.loadVenues();
         const id = form.dataset.id || this.createId('v');
         const existingVenue = venues.find((venue) => venue.id === id);
+        const readField = (name, fallback = '') => String(formData.get(name) ?? fallback).trim();
         const nextVenue = {
           id,
-          name: formData.get('name').trim(),
-          address: formData.get('address').trim(),
-          hours: formData.get('hours').trim(),
+          name: readField('name'),
+          address: readField('address', existingVenue?.address || ''),
+          hours: readField('hours', existingVenue?.hours || ''),
           price: {
-            amount: Number(formData.get('priceAmount')) || 0,
-            unit: formData.get('priceUnit')
+            amount: Number(formData.get('priceAmount')) || existingVenue?.price?.amount || 0,
+            unit: formData.get('priceUnit') || existingVenue?.price?.unit || '日'
           },
-          tags: this.parseTags(formData.get('tags')),
-          customTags: this.parseTags(formData.get('customTags')),
-          menuInfo: formData.get('menuInfo').trim(),
-          membershipInfo: formData.get('membershipInfo').trim(),
-          notes: formData.get('notes').trim(),
+          tags: this.parseTags(formData.get('tags') ?? existingVenue?.tags?.join('，') ?? ''),
+          customTags: this.parseTags(formData.get('customTags') ?? existingVenue?.customTags?.join('，') ?? ''),
+          menuInfo: readField('menuInfo', existingVenue?.menuInfo || ''),
+          membershipInfo: readField('membershipInfo', existingVenue?.membershipInfo || ''),
+          notes: readField('notes', existingVenue?.notes || ''),
           images: existingVenue ? existingVenue.images : [],
           visitCount: existingVenue ? existingVenue.visitCount : 0,
           createdAt: existingVenue ? existingVenue.createdAt : new Date().toISOString().slice(0, 10),
-          sceneType: formData.get('sceneType')
+          sceneType: formData.get('sceneType') || existingVenue?.sceneType || '自习室'
         };
 
         if (!nextVenue.name) {
@@ -1529,9 +1747,29 @@
           : [nextVenue, ...venues];
 
         if (Storage.saveVenues(nextVenues)) {
+          if (form.dataset.addToPick === 'true') {
+            const currentPick = Storage.loadCurrentPick();
+            Storage.saveCurrentPick({
+              ...currentPick,
+              selectedVenueIds: [...new Set([...currentPick.selectedVenueIds, id])]
+            });
+          }
           UI.closeModal();
-          UI.showStatus(existingVenue ? '场地已更新。' : '场地已添加。', 'success');
-          this.render();
+          if (form.dataset.completeTarget === 'pick') {
+            PickManager.openStep2ForVenue(id);
+            return;
+          }
+          if (form.dataset.completeTarget === 'star') {
+            this.openStep12ForVenue(id);
+            return;
+          }
+          UI.showStatus(
+            form.dataset.addToPick === 'true'
+              ? '新地点已加入 Pick 候选列表。'
+              : (existingVenue ? '场地已更新。' : '场地已添加。'),
+            'success'
+          );
+          App.render();
         }
       },
 
@@ -1607,10 +1845,43 @@
 
       createId(prefix) {
         return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+      },
+
+      openStep12ForVenue(venueId) {
+        this.activeVenueId = venueId;
+        this.viewStep = 2;
+        App.switchTab('star');
+      },
+
+      goStep1() {
+        this.viewStep = 1;
+        this.activeVenueId = '';
+        this.render();
+      },
+
+      renderStep12() {
+        const venue = Storage.loadVenues().find((item) => item.id === this.activeVenueId) || Storage.loadVenues()[0];
+        if (!venue) {
+          this.goStep1();
+          return;
+        }
+        this.activeVenueId = venue.id;
+        document.getElementById('tab-star').innerHTML = PickManager.renderCopyStep({
+          title: 'Enjoy coffee any time',
+          subtitle: 'Star 1.2',
+          venue,
+          venues: [venue],
+          activeIndex: 0,
+          progress: '1/1',
+          backAction: 'back-star-list',
+          nextAction: '',
+          actionAttribute: 'data-action'
+        });
       }
     };
 
     const PickManager = {
+      viewStep: 1,
       dateDrag: {
         strip: null,
         targetDate: '',
@@ -1619,6 +1890,13 @@
         moved: false,
         active: false,
         suppressClick: false
+      },
+      cupDrag: {
+        startX: 0,
+        lastX: 0,
+        moved: false,
+        active: false,
+        row: null
       },
 
       init() {
@@ -1630,14 +1908,31 @@
         pickTab.addEventListener('pointermove', (event) => this.handleDatePointerMove(event));
         pickTab.addEventListener('pointerup', () => this.endDateDrag());
         pickTab.addEventListener('pointercancel', () => this.cancelDateDrag());
+        pickTab.addEventListener('pointerdown', (event) => this.handleCupPointerDown(event));
+        pickTab.addEventListener('pointermove', (event) => this.handleCupPointerMove(event));
+        pickTab.addEventListener('pointerup', () => this.endCupDrag());
+        pickTab.addEventListener('pointercancel', () => this.cancelCupDrag());
       },
 
       render() {
         const currentPick = Storage.loadCurrentPick();
+        if (this.viewStep === 2) {
+          this.renderStep2(currentPick);
+          return;
+        }
+        if (currentPick.currentStep !== 1) {
+          Storage.saveCurrentPick({ ...currentPick, currentStep: 1 });
+          currentPick.currentStep = 1;
+        }
+        this.renderStep1(currentPick);
+      },
+
+      renderStep1(currentPick) {
         const selectedVenues = this.getSelectedVenues(currentPick);
         const allConditions = [...DEFAULT_FILTERS, ...currentPick.customConditions];
+        const canGoStep2 = selectedVenues.length >= 2;
         document.getElementById('tab-pick').innerHTML = `
-          ${UI.renderHeader({ id: 'pick-title', text: 'pick' }, '', '<button class="pick-arrow-btn" type="button" data-pick-action="go-step-2" aria-label="下一步">→</button>')}
+          ${UI.renderHeader({ id: 'pick-title', text: 'pick' }, '', `<button class="pick-arrow-btn" type="button" data-pick-action="go-step-2" aria-label="下一步" ${canGoStep2 ? '' : 'disabled'}>→</button>`)}
           <section class="panel pick-board">
             <div class="pick-step">
               <div class="pick-topbar">
@@ -1652,6 +1947,7 @@
                   <div class="station-title">station</div>
                   <div class="station-actions">
                     <button class="station-add-btn" type="button" data-pick-action="open-star-picker">+</button>
+                    <button class="station-step-btn" type="button" data-pick-action="go-step-2" ${canGoStep2 ? '' : 'disabled'}>进入信息复制</button>
                   </div>
                   ${this.renderSelectedVenues(selectedVenues)}
                 </section>
@@ -1672,11 +1968,85 @@
                 </section>
               </div>
               <div class="step-footer">
-                <button class="primary-btn" type="button" data-pick-action="go-step-2" ${selectedVenues.length >= 2 ? '' : 'disabled'}>下一步</button>
-                <p class="helper-text">${selectedVenues.length >= 2 ? '可以进入复制信息步骤。' : '至少选择 2 个场地后才能进入下一步。'}</p>
+                <button class="primary-btn" type="button" data-pick-action="go-step-2" ${canGoStep2 ? '' : 'disabled'}>下一步</button>
+                <p class="helper-text">${canGoStep2 ? '可以进入复制信息步骤。' : '至少选择 2 个场地后才能进入下一步。'}</p>
               </div>
             </div>
           </section>
+        `;
+      },
+
+      renderStep2(currentPick) {
+        UI.clearStatus();
+        const selectedVenues = this.getSelectedVenues(currentPick);
+        const activeVenue = selectedVenues[currentPick.activeVenueIndex] || selectedVenues[0];
+        if (!activeVenue) {
+          this.goStep1({ activeVenueIndex: 0 });
+          return;
+        }
+        const progress = `${currentPick.activeVenueIndex + 1}/${selectedVenues.length}`;
+        document.getElementById('tab-pick').innerHTML = this.renderCopyStep({
+          title: 'Enjoy coffee any time',
+          subtitle: `当前地点 ${progress}`,
+          venue: activeVenue,
+          venues: selectedVenues,
+          activeIndex: currentPick.activeVenueIndex,
+          progress,
+          backAction: 'back-step-1',
+          nextAction: 'go-step-3',
+          actionAttribute: 'data-pick-action'
+        });
+      },
+
+      renderCopyStep({ title, subtitle, venue, venues = [venue], activeIndex = 0, backAction, nextAction, actionAttribute }) {
+        return `
+          <div class="step2-nav" aria-label="步骤导航">
+            <button class="pick-arrow-btn" type="button" ${actionAttribute}="${backAction}" aria-label="返回">←</button>
+            ${nextAction ? `<button class="pick-arrow-btn" type="button" ${actionAttribute}="${nextAction}" aria-label="下一步">→</button>` : ''}
+          </div>
+          ${UI.renderHeader({ id: 'copy-step-title', text: title }, subtitle)}
+          <section class="panel pick-board">
+            <div class="step2-shell">
+              <div class="step2-title">
+                <h2>${UI.escape(venue.name)}</h2>
+              </div>
+              <div class="channel-orbit">
+                ${this.renderChannelCard('xiaohongshu', '小红书', '环境', venue.name, actionAttribute)}
+                ${this.renderChannelCard('meituan', '美团', '价格', venue.name, actionAttribute)}
+                ${this.renderChannelCard('dianping', '大众点评', '距离', venue.name, actionAttribute)}
+              </div>
+              ${this.renderVenueCarousel(venues, activeIndex)}
+              <p class="helper-text">按住杯子左右拖动切换地点；点击渠道圆点粘贴链接。</p>
+            </div>
+          </section>
+        `;
+      },
+
+      renderChannelCard(channel, title, subtitle, venueName, actionAttribute = 'data-pick-action') {
+        return `
+          <button class="channel-dot" type="button" ${actionAttribute}="open-channel" data-channel="${channel}" data-query="${UI.escape(venueName)}" aria-label="${title} ${subtitle}">
+            <em></em>
+            <strong>${title}</strong>
+          </button>
+        `;
+      },
+
+      renderVenueCarousel(selectedVenues, activeIndex) {
+        const visibleVenues = [
+          selectedVenues[activeIndex - 1] || selectedVenues[selectedVenues.length - 1],
+          selectedVenues[activeIndex],
+          selectedVenues[activeIndex + 1] || selectedVenues[0]
+        ].filter(Boolean);
+        return `
+          <div class="venue-carousel" data-cup-carousel="true" aria-label="当前复制地点">
+            <div class="venue-cup-row">
+              ${visibleVenues.map((venue, index) => `
+                <div class="venue-cup${index === 1 ? ' is-active' : ''}">
+                  <span>${UI.escape(venue.name)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
         `;
       },
 
@@ -1726,7 +2096,7 @@
           return `
             <div class="empty-state">
               <h2 class="placeholder-title">还没有候选场地</h2>
-              <p>点 + 从 Star 选择候选场地。</p>
+              <p>点 + 新建地点或从 Star 选择候选场地。</p>
             </div>
           `;
         }
@@ -1739,6 +2109,7 @@
                   <h3>${UI.escape(venue.name)}</h3>
                   <p>${UI.escape(venue.hours || '时间待补充')}</p>
                 </div>
+                <button class="mini-btn is-primary" type="button" data-pick-action="go-step-2" ${Storage.loadCurrentPick().selectedVenueIds.length >= 2 ? '' : 'disabled'}>进入</button>
                 <button class="mini-btn is-danger" type="button" data-pick-action="remove-venue" data-id="${venue.id}">×</button>
               </div>
             `).join('')}
@@ -1778,11 +2149,14 @@
           return;
         }
         const actions = {
+          'back-step-1': () => this.goStep1(),
           'open-star-picker': () => this.openStarPicker(),
+          'open-channel': () => this.openChannel(trigger.dataset.channel, trigger.dataset.query),
           'remove-venue': () => this.removeVenue(trigger.dataset.id),
           'add-condition': () => this.addCustomCondition(),
           'set-date': () => this.setDate(trigger.dataset.date),
-          'go-step-2': () => this.goStep2()
+          'go-step-2': () => this.goStep2(),
+          'go-step-3': () => this.goStep3()
         };
         if (actions[action]) actions[action]();
       },
@@ -1833,6 +2207,63 @@
         this.dateDrag.suppressClick = false;
       },
 
+      handleCupPointerDown(event) {
+        const carousel = event.target.closest('[data-cup-carousel]');
+        if (!carousel) return;
+        const row = carousel.querySelector('.venue-cup-row');
+        this.cupDrag = {
+          startX: event.clientX,
+          lastX: event.clientX,
+          moved: false,
+          active: true,
+          row
+        };
+        carousel.classList.add('is-dragging');
+        carousel.setPointerCapture?.(event.pointerId);
+      },
+
+      handleCupPointerMove(event) {
+        if (!this.cupDrag.active) return;
+        const deltaX = event.clientX - this.cupDrag.startX;
+        this.cupDrag.lastX = event.clientX;
+        if (Math.abs(deltaX) > 32) this.cupDrag.moved = true;
+        if (this.cupDrag.row) {
+          const clampedDelta = Math.max(-120, Math.min(120, deltaX));
+          this.cupDrag.row.style.transform = `translateX(${clampedDelta}px)`;
+        }
+      },
+
+      endCupDrag() {
+        const carousel = document.querySelector('[data-cup-carousel]');
+        if (carousel) carousel.classList.remove('is-dragging');
+        if (!this.cupDrag.active) return;
+        const currentPick = Storage.loadCurrentPick();
+        const selectedCount = currentPick.selectedVenueIds.length;
+        const deltaX = this.cupDrag.lastX - this.cupDrag.startX;
+        const row = this.cupDrag.row;
+        if (row) {
+          row.style.transition = 'transform 0.22s ease';
+          row.style.transform = this.cupDrag.moved && selectedCount > 1
+            ? `translateX(${deltaX < 0 ? -226 : 226}px)`
+            : 'translateX(0)';
+        }
+        if (this.cupDrag.moved && selectedCount > 1) {
+          const direction = deltaX < 0 ? 1 : -1;
+          const nextIndex = (currentPick.activeVenueIndex + direction + selectedCount) % selectedCount;
+          window.setTimeout(() => {
+            this.updateCurrentPick({ activeVenueIndex: nextIndex });
+          }, 180);
+        }
+        this.cupDrag.active = false;
+      },
+
+      cancelCupDrag() {
+        const carousel = document.querySelector('[data-cup-carousel]');
+        if (carousel) carousel.classList.remove('is-dragging');
+        if (this.cupDrag.row) this.cupDrag.row.style.transform = 'translateX(0)';
+        this.cupDrag.active = false;
+      },
+
       updateCurrentPick(patch, shouldRender = true) {
         const currentPick = Storage.loadCurrentPick();
         Storage.saveCurrentPick({
@@ -1843,6 +2274,71 @@
         if (shouldRender) this.render();
       },
 
+      goStep1(patch = {}) {
+        this.viewStep = 1;
+        this.updateCurrentPick({ currentStep: 1, ...patch });
+      },
+
+      openStep2ForVenue(venueId) {
+        const currentPick = Storage.loadCurrentPick();
+        const selectedVenueIds = [...new Set([...currentPick.selectedVenueIds, venueId])];
+        const activeVenueIndex = Math.max(0, selectedVenueIds.indexOf(venueId));
+        Storage.saveCurrentPick({
+          ...currentPick,
+          selectedVenueIds,
+          currentStep: 2,
+          activeVenueIndex
+        });
+        this.viewStep = 2;
+        App.switchTab('pick');
+      },
+
+      openChannel(channel, query) {
+        const currentPick = Storage.loadCurrentPick();
+        const venueId = currentPick.selectedVenueIds[currentPick.activeVenueIndex];
+        const channelNames = {
+          meituan: '美团',
+          xiaohongshu: '小红书',
+          amap: '高德地图',
+          dianping: '大众点评'
+        };
+        const copiedInfo = currentPick.copiedInfo?.[venueId] || {};
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">${UI.escape(channelNames[channel] || '渠道')}</p>
+              <h2 class="modal-title">粘贴链接</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <form id="channel-link-form" class="venue-form" data-venue-id="${venueId}" data-channel="${channel}">
+            <p class="placeholder-text">请打开${UI.escape(channelNames[channel] || '对应 App')}，搜索：${UI.escape(query)}，再把链接粘贴回来。</p>
+            <label class="field">
+              链接
+              <input name="link" value="${UI.escape(copiedInfo[channel] || '')}" placeholder="粘贴 ${UI.escape(channelNames[channel] || '渠道')} 链接">
+            </label>
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">保存链接</button>
+              <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
+            </div>
+          </form>
+        `);
+      },
+
+      saveChannelLink(venueId, channel, link) {
+        const currentPick = Storage.loadCurrentPick();
+        const copiedInfo = {
+          ...(currentPick.copiedInfo || {}),
+          [venueId]: {
+            ...(currentPick.copiedInfo?.[venueId] || {}),
+            [channel]: link
+          }
+        };
+        Storage.saveCurrentPick({ ...currentPick, copiedInfo });
+        UI.closeModal();
+        UI.showStatus('链接已保存。', 'success');
+      },
+
       getSelectedVenues(currentPick) {
         const venues = Storage.loadVenues();
         return currentPick.selectedVenueIds
@@ -1851,6 +2347,22 @@
       },
 
       openStarPicker() {
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Pick</p>
+              <h2 class="modal-title">添加候选场地</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <div class="modal-actions">
+            <button class="primary-btn" type="button" data-action="pick-new-venue">新建地点</button>
+            <button class="secondary-btn" type="button" data-action="pick-open-star-list">从 Star 选择</button>
+          </div>
+        `);
+      },
+
+      openStarPickerList() {
         const venues = Storage.loadVenues();
         const currentPick = Storage.loadCurrentPick();
         UI.openModal(`
@@ -1876,43 +2388,6 @@
             }).join('') : '<p class="placeholder-text">Star 里还没有场地。</p>'}
           </div>
         `);
-      },
-
-      openPasteModal() {
-        UI.openModal(`
-          <div class="modal-header">
-            <div>
-              <p class="eyebrow">Pick</p>
-              <h2 class="modal-title">粘贴地点信息</h2>
-            </div>
-            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
-          </div>
-          <form id="pick-paste-form" class="venue-form">
-            <label class="field">
-              粘贴文本
-              <textarea name="rawText" placeholder="粘贴小红书/美团/地图里复制的地点信息"></textarea>
-            </label>
-            <div class="form-actions">
-              <button class="primary-btn" type="submit">生成候选场地</button>
-              <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
-            </div>
-          </form>
-        `);
-      },
-
-      addVenueFromPaste(rawText) {
-        const draft = AIExtractor.extractVenue(rawText);
-        const venues = Storage.loadVenues();
-        const nextVenues = [draft, ...venues];
-        const currentPick = Storage.loadCurrentPick();
-        Storage.saveVenues(nextVenues);
-        Storage.saveCurrentPick({
-          ...currentPick,
-          selectedVenueIds: [...new Set([...currentPick.selectedVenueIds, draft.id])]
-        });
-        UI.closeModal();
-        UI.showStatus('已从粘贴文本生成候选场地。', 'success');
-        App.render();
       },
 
       addStarVenue(venueId) {
@@ -1950,9 +2425,15 @@
           UI.showStatus('至少选择 2 个场地后才能进入下一步。');
           return;
         }
-        Storage.saveCurrentPick({ ...currentPick, currentStep: 1, activeVenueIndex: 0 });
-        UI.showStatus('步骤 2.1 已完成，下一阶段会实现信息复制流程。', 'success');
+        this.viewStep = 2;
+        Storage.saveCurrentPick({ ...currentPick, currentStep: 2, activeVenueIndex: 0 });
+        UI.clearStatus();
         this.render();
+      },
+
+      goStep3() {
+        Storage.saveCurrentPick({ ...Storage.loadCurrentPick(), currentStep: 3, step2Completed: true });
+        UI.showStatus('2.3 地图筛选页面会在下一步开发。', 'success');
       }
     };
 
