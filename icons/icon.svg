@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">PickPick</title>
+  <rect width="512" height="512" rx="112" fill="#2DCD9B"/>
+  <path d="M145 154h222c22 0 40 18 40 40v156c0 22-18 40-40 40H145c-22 0-40-18-40-40V194c0-22 18-40 40-40z" fill="#FFFFFF"/>
+  <path d="M166 211h180" stroke="#159D77" stroke-width="24" stroke-linecap="round"/>
+  <path d="M166 273h126" stroke="#159D77" stroke-width="24" stroke-linecap="round"/>
+  <path d="M166 335h84" stroke="#159D77" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="351" cy="313" r="42" fill="#1F2933"/>
+  <path d="m337 313 10 10 22-24" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

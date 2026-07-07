@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2DCD9B">
+  <title>PickPick</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --color-primary: #2DCD9B;
+      --color-primary-dark: #159D77;
+      --color-bg: #FAFAFA;
+      --color-surface: #FFFFFF;
+      --color-text: #1F2933;
+      --color-muted: #6B7280;
+      --color-line: #E5E7EB;
+      --color-soft: #F2FBF8;
+      --color-danger: #E5484D;
+      --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+      --radius-card: 12px;
+      --radius-control: 12px;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --tab-height: 64px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app-shell {
+      position: relative;
+      width: 100%;
+      max-width: 430px;
+      min-height: 100vh;
+      background: var(--color-bg);
+      overflow: hidden;
+    }
+
+    .app-main {
+      min-height: 100vh;
+      padding: calc(env(safe-area-inset-top, 0px) + var(--space-4)) var(--space-4)
+        calc(var(--tab-height) + env(safe-area-inset-bottom, 0px) + var(--space-4));
+      overflow-y: auto;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .eyebrow {
+      margin: 0 0 var(--space-1);
+      color: var(--color-primary-dark);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .header-copy {
+      margin: var(--space-2) 0 0;
+      color: var(--color-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: var(--space-4);
+    }
+
+    .panel + .panel {
+      margin-top: var(--space-4);
+    }
+
+    .placeholder-title {
+      margin: 0 0 var(--space-2);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .placeholder-text {
+      margin: 0;
+      color: var(--color-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .primary-btn,
+    .secondary-btn,
+    .icon-btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: var(--radius-control);
+      transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .primary-btn {
+      width: 100%;
+      background: var(--color-primary);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .secondary-btn {
+      background: var(--color-soft);
+      color: var(--color-primary-dark);
+      font-weight: 700;
+      padding: 0 var(--space-4);
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--color-primary);
+      color: #FFFFFF;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .primary-btn:active,
+    .secondary-btn:active,
+    .icon-btn:active {
+      transform: scale(0.98);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.is-active {
+      display: block;
+    }
+
+    .tab-bar {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      width: 100%;
+      max-width: 430px;
+      height: calc(var(--tab-height) + env(safe-area-inset-bottom, 0px));
+      padding: var(--space-1) var(--space-3) env(safe-area-inset-bottom, 0px);
+      border-top: 1px solid var(--color-line);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      transform: translateX(-50%);
+    }
+
+    .tab-btn {
+      min-height: 52px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #999999;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tab-icon {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .tab-btn.is-active {
+      background: var(--color-soft);
+      color: var(--color-primary-dark);
+    }
+
+    @media (min-width: 431px) {
+      .app-shell {
+        border-left: 1px solid var(--color-line);
+        border-right: 1px solid var(--color-line);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <main class="app-main">
+      <section id="tab-star" class="tab-panel is-active" aria-labelledby="star-title"></section>
+      <section id="tab-pick" class="tab-panel" aria-labelledby="pick-title"></section>
+      <section id="tab-my" class="tab-panel" aria-labelledby="my-title"></section>
+    </main>
+
+    <nav class="tab-bar" aria-label="主导航">
+      <button class="tab-btn is-active" type="button" data-tab="star">
+        <span class="tab-icon">★</span>
+        Star
+      </button>
+      <button class="tab-btn" type="button" data-tab="pick">
+        <span class="tab-icon">◎</span>
+        Pick
+      </button>
+      <button class="tab-btn" type="button" data-tab="my">
+        <span class="tab-icon">人</span>
+        My
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    const App = {
+      currentTab: 'star',
+
+      init() {
+        this.bindNavigation();
+        this.render();
+        this.registerServiceWorker();
+      },
+
+      bindNavigation() {
+        document.querySelectorAll('.tab-btn').forEach((button) => {
+          button.addEventListener('click', () => this.switchTab(button.dataset.tab));
+        });
+      },
+
+      switchTab(tabName) {
+        this.currentTab = tabName;
+        document.querySelectorAll('.tab-btn').forEach((button) => {
+          button.classList.toggle('is-active', button.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+          panel.classList.toggle('is-active', panel.id === `tab-${tabName}`);
+        });
+        this.render();
+      },
+
+      render() {
+        StarManager.render();
+        PickManager.render();
+        HistoryManager.render();
+      },
+
+      registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
+    };
+
+    const UI = {
+      renderHeader(title, subtitle, actionHtml = '') {
+        return `
+          <header class="app-header">
+            <div>
+              <p class="eyebrow">PickPick</p>
+              <h1 id="${title.id}">${title.text}</h1>
+              <p class="header-copy">${subtitle}</p>
+            </div>
+            ${actionHtml}
+          </header>
+        `;
+      }
+    };
+
+    const StarManager = {
+      render() {
+        document.getElementById('tab-star').innerHTML = `
+          ${UI.renderHeader({ id: 'star-title', text: '收藏库' }, '先把候选自习室和咖啡馆沉淀成自己的地点库。', '<button class="icon-btn" type="button" aria-label="添加地点">+</button>')}
+          <section class="panel">
+            <h2 class="placeholder-title">Star 模块检查点</h2>
+            <p class="placeholder-text">下一步会接入 Storage、示例数据、搜索、地点卡片和新增流程。</p>
+          </section>
+        `;
+      }
+    };
+
+    const PickManager = {
+      render() {
+        document.getElementById('tab-pick').innerHTML = `
+          ${UI.renderHeader({ id: 'pick-title', text: '对比决策' }, '从候选地点里快速筛掉不合适的选择。')}
+          <section class="panel">
+            <h2 class="placeholder-title">Pick 流程检查点</h2>
+            <p class="placeholder-text">后续会按 2.1、2.2、2.3 三个步骤逐步实现。</p>
+          </section>
+        `;
+      }
+    };
+
+    const HistoryManager = {
+      render() {
+        document.getElementById('tab-my').innerHTML = `
+          ${UI.renderHeader({ id: 'my-title', text: '我的记录' }, '回看每一次选择，积累适合自己的场所经验。')}
+          <section class="panel">
+            <h2 class="placeholder-title">My 模块检查点</h2>
+            <p class="placeholder-text">后续会实现日历、最近记录、记录本、照片和备注。</p>
+          </section>
+        `;
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "PickPick",
+  "short_name": "PickPick",
+  "description": "轻量级本地场所对比决策工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#2DCD9B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
