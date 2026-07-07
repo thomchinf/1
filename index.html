@@ -335,18 +335,28 @@
 
     .tag {
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.2);
-      color: rgba(255, 255, 255, 0.88);
+      background: #F3F4F6;
+      color: var(--color-muted);
       padding: 4px 7px;
       font-size: 11px;
       line-height: 1.2;
-      backdrop-filter: blur(10px);
     }
 
     .tag.is-primary {
+      background: var(--color-soft);
+      color: var(--color-primary-dark);
+      font-weight: 700;
+    }
+
+    .venue-card .tag {
+      background: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+    }
+
+    .venue-card .tag.is-primary {
       background: rgba(45, 205, 155, 0.88);
       color: #FFFFFF;
-      font-weight: 700;
     }
 
     .card-actions,
@@ -472,6 +482,329 @@
 
     .form-grid .field.is-full {
       grid-column: 1 / -1;
+    }
+
+    .pick-step {
+      display: grid;
+      gap: var(--space-3);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    .pick-board {
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    #tab-pick .app-header {
+      margin-bottom: var(--space-3);
+    }
+
+    #tab-pick h1 {
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    #tab-pick .header-copy {
+      margin-top: var(--space-2);
+      color: #111111;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    #tab-pick .eyebrow {
+      visibility: hidden;
+      height: 18px;
+      margin: 0 0 var(--space-2);
+    }
+
+    .pick-topbar {
+      display: block;
+    }
+
+    .pick-location {
+      display: grid;
+      gap: 4px;
+    }
+
+    .pick-location label,
+    .station-title,
+    .select-title {
+      color: var(--color-text);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: lowercase;
+    }
+
+    .pick-location input {
+      min-height: 34px;
+      border: 0;
+      border-bottom: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      padding: 4px 0;
+      font-size: 13px;
+    }
+
+    .pick-arrow-btn {
+      width: 38px;
+      height: 24px;
+      min-height: 24px;
+      border: 0;
+      border-radius: 999px;
+      background: #D8D8D8;
+      color: #111111;
+      font-weight: 900;
+    }
+
+    .date-strip {
+      display: flex;
+      gap: var(--space-2);
+      overflow-x: auto;
+      padding: var(--space-2) 0 var(--space-3);
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .date-strip.is-dragging {
+      cursor: grabbing;
+      scroll-snap-type: none;
+    }
+
+    .date-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .date-item {
+      flex: 0 0 44px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #111111;
+      padding: 7px 4px;
+      text-align: center;
+      scroll-snap-align: center;
+      transition: background 0.16s ease, transform 0.16s ease, color 0.16s ease;
+    }
+
+    .date-item strong,
+    .date-item span {
+      display: block;
+      line-height: 1.1;
+    }
+
+    .date-item strong {
+      font-size: 17px;
+      font-weight: 500;
+    }
+
+    .date-item span {
+      margin-top: 3px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .date-item.is-active {
+      background: #CFCFCF;
+      transform: translateY(-1px);
+    }
+
+    .date-item.is-today strong {
+      color: var(--color-primary-dark);
+      font-weight: 800;
+    }
+
+    .date-item.is-active strong {
+      color: #111111;
+      font-weight: 800;
+    }
+
+    .inline-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2);
+    }
+
+    .weather-card {
+      min-height: 124px;
+      border: 0;
+      border-radius: 20px;
+      background: #D8D8D8;
+      padding: var(--space-4);
+      color: #111111;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .weather-card strong {
+      display: block;
+      margin-bottom: var(--space-2);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: lowercase;
+    }
+
+    .pick-columns {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(104px, 0.75fr);
+      gap: var(--space-3);
+      align-items: stretch;
+    }
+
+    .station-panel,
+    .select-panel {
+      min-height: 156px;
+      border-radius: 18px;
+      background: #D8D8D8;
+      padding: var(--space-3);
+    }
+
+    .station-panel {
+      display: grid;
+      gap: var(--space-2);
+      align-content: start;
+    }
+
+    .station-actions {
+      display: block;
+    }
+
+    .station-add-btn {
+      min-height: 28px;
+      border: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      color: #111111;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .selected-list,
+    .star-picker-list {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .selected-item,
+    .star-picker-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      padding: 6px 8px;
+    }
+
+    .selected-item h3,
+    .star-picker-item h3 {
+      margin: 0;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .selected-item p,
+    .star-picker-item p {
+      margin: 3px 0 0;
+      color: #333333;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .mini-btn {
+      min-height: 34px;
+      border: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      color: var(--color-text);
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .mini-btn.is-primary {
+      border-color: rgba(45, 205, 155, 0.36);
+      background: var(--color-soft);
+      color: var(--color-primary-dark);
+    }
+
+    .mini-btn.is-danger {
+      border-color: rgba(229, 72, 77, 0.24);
+      color: var(--color-danger);
+    }
+
+    .condition-grid {
+      display: grid;
+      gap: 6px;
+      margin-top: var(--space-2);
+    }
+
+    .condition-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 16px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--color-text);
+      padding: 0;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .condition-pill input {
+      width: 10px;
+      min-height: 10px;
+      accent-color: #111111;
+    }
+
+    .custom-condition-form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      margin-top: var(--space-2);
+    }
+
+    .custom-condition-form input {
+      min-height: 30px;
+      border: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      font-size: 11px;
+    }
+
+    .step-footer {
+      display: grid;
+      gap: var(--space-2);
+      margin-top: var(--space-1);
+    }
+
+    #tab-pick .step-footer .primary-btn {
+      min-height: 40px;
+      border-radius: 999px;
+    }
+
+    .helper-text {
+      margin: 0;
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
     }
 
     .placeholder-title {
@@ -700,6 +1033,8 @@
       step2Completed: false
     };
 
+    const DEFAULT_FILTERS = ['有插座', '安静', '靠窗', '大桌子', '22点后营业', '有咖啡'];
+
     const Storage = {
       keys: {
         venues: 'venues',
@@ -789,6 +1124,7 @@
       init() {
         Storage.init();
         StarManager.init();
+        PickManager.init();
         this.bindNavigation();
         this.render();
         this.registerServiceWorker();
@@ -1005,10 +1341,24 @@
       handleModalClick(event) {
         const trigger = event.target.closest('[data-action]');
         if (!trigger) return;
+        if (trigger.dataset.action === 'pick-add-star') {
+          PickManager.addStarVenue(trigger.dataset.id);
+          return;
+        }
         this.runAction(trigger.dataset.action, trigger.dataset.id);
       },
 
       handleSubmit(event) {
+        if (event.target.id === 'pick-paste-form') {
+          event.preventDefault();
+          const rawText = new FormData(event.target).get('rawText').trim();
+          if (!rawText) {
+            UI.showStatus('粘贴文本为空，无法生成候选场地。');
+            return;
+          }
+          PickManager.addVenueFromPaste(rawText);
+          return;
+        }
         if (event.target.id !== 'venue-form') return;
         event.preventDefault();
         this.saveFromForm(event.target);
@@ -1261,20 +1611,378 @@
     };
 
     const PickManager = {
+      dateDrag: {
+        strip: null,
+        targetDate: '',
+        startX: 0,
+        startScrollLeft: 0,
+        moved: false,
+        active: false,
+        suppressClick: false
+      },
+
+      init() {
+        const pickTab = document.getElementById('tab-pick');
+        pickTab.addEventListener('input', (event) => this.handleInput(event));
+        pickTab.addEventListener('change', (event) => this.handleChange(event));
+        pickTab.addEventListener('click', (event) => this.handleClick(event));
+        pickTab.addEventListener('pointerdown', (event) => this.handleDatePointerDown(event));
+        pickTab.addEventListener('pointermove', (event) => this.handleDatePointerMove(event));
+        pickTab.addEventListener('pointerup', () => this.endDateDrag());
+        pickTab.addEventListener('pointercancel', () => this.cancelDateDrag());
+      },
+
       render() {
         const currentPick = Storage.loadCurrentPick();
+        const selectedVenues = this.getSelectedVenues(currentPick);
+        const allConditions = [...DEFAULT_FILTERS, ...currentPick.customConditions];
         document.getElementById('tab-pick').innerHTML = `
-          ${UI.renderHeader({ id: 'pick-title', text: '对比决策' }, '从候选地点里快速筛掉不合适的选择。')}
-          <section class="panel">
-            ${UI.renderMetrics([
-              { value: currentPick.currentStep, label: '当前步骤' },
-              { value: currentPick.selectedVenueIds.length, label: '候选场地' },
-              { value: currentPick.filterConditions.length, label: '默认条件' }
-            ])}
-            <h2 class="placeholder-title">currentPick 状态已初始化</h2>
-            <p class="placeholder-text">默认计划时间为 ${currentPick.date} ${currentPick.time}。下一步会实现步骤 2.1 的输入和候选场地管理。</p>
+          ${UI.renderHeader({ id: 'pick-title', text: 'pick' }, '', '<button class="pick-arrow-btn" type="button" data-pick-action="go-step-2" aria-label="下一步">→</button>')}
+          <section class="panel pick-board">
+            <div class="pick-step">
+              <div class="pick-topbar">
+                <div class="pick-location">
+                  <input id="pick-location-input" name="userLocation" value="${UI.escape(currentPick.userLocation)}" placeholder="输入出发位置" data-pick-field="userLocation">
+                </div>
+              </div>
+              ${this.renderDateStrip(currentPick)}
+              ${this.renderWeather(currentPick)}
+              <div class="pick-columns">
+                <section class="station-panel">
+                  <div class="station-title">station</div>
+                  <div class="station-actions">
+                    <button class="station-add-btn" type="button" data-pick-action="open-star-picker">+</button>
+                  </div>
+                  ${this.renderSelectedVenues(selectedVenues)}
+                </section>
+                <section class="select-panel">
+                  <div class="select-title">select</div>
+                  <div class="condition-grid">
+                    ${allConditions.map((condition) => `
+                      <label class="condition-pill">
+                        <input type="checkbox" data-condition="${UI.escape(condition)}" ${currentPick.filterConditions.includes(condition) ? 'checked' : ''}>
+                        ${UI.escape(condition)}
+                      </label>
+                    `).join('')}
+                  </div>
+                  <div class="custom-condition-form">
+                    <input id="custom-condition-input" placeholder="+ 条件">
+                    <button class="mini-btn is-primary" type="button" data-pick-action="add-condition">+</button>
+                  </div>
+                </section>
+              </div>
+              <div class="step-footer">
+                <button class="primary-btn" type="button" data-pick-action="go-step-2" ${selectedVenues.length >= 2 ? '' : 'disabled'}>下一步</button>
+                <p class="helper-text">${selectedVenues.length >= 2 ? '可以进入复制信息步骤。' : '至少选择 2 个场地后才能进入下一步。'}</p>
+              </div>
+            </div>
           </section>
         `;
+      },
+
+      renderDateStrip(currentPick) {
+        const today = new Date();
+        const todayValue = this.formatDateValue(today);
+        const days = Array.from({ length: 21 }, (_, index) => {
+            const date = new Date(today);
+            date.setDate(today.getDate() + index);
+            return date;
+          });
+        return `
+          <div class="date-strip" aria-label="日期选择">
+            ${days.map((date) => {
+              const value = this.formatDateValue(date);
+              const weekday = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
+              const isActive = value === currentPick.date;
+              const isToday = value === todayValue;
+              return `
+                <button class="date-item${isActive ? ' is-active' : ''}${isToday ? ' is-today' : ''}" type="button" data-pick-action="set-date" data-date="${value}">
+                  <strong>${date.getDate()}</strong>
+                  <span>${weekday}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        `;
+      },
+
+      formatDateValue(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      },
+
+      renderWeather(currentPick) {
+        if (!currentPick.userLocation) {
+          return '<div class="weather-card"><strong>weather</strong>填写出发位置后显示天气占位信息。</div>';
+        }
+        const weather = WeatherService.getWeather(currentPick);
+        return `<div class="weather-card"><strong>weather</strong>${UI.escape(weather)}</div>`;
+      },
+
+      renderSelectedVenues(selectedVenues) {
+        if (!selectedVenues.length) {
+          return `
+            <div class="empty-state">
+              <h2 class="placeholder-title">还没有候选场地</h2>
+              <p>点 + 从 Star 选择候选场地。</p>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="selected-list">
+            ${selectedVenues.map((venue) => `
+              <div class="selected-item">
+                <div>
+                  <h3>${UI.escape(venue.name)}</h3>
+                  <p>${UI.escape(venue.hours || '时间待补充')}</p>
+                </div>
+                <button class="mini-btn is-danger" type="button" data-pick-action="remove-venue" data-id="${venue.id}">×</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      handleInput(event) {
+        const field = event.target.dataset.pickField;
+        if (!field) return;
+        this.updateCurrentPick({ [field]: event.target.value }, false);
+      },
+
+      handleChange(event) {
+        const field = event.target.dataset.pickField;
+        if (field) {
+          this.updateCurrentPick({ [field]: event.target.value });
+          return;
+        }
+        const condition = event.target.dataset.condition;
+        if (!condition) return;
+        const currentPick = Storage.loadCurrentPick();
+        const nextConditions = event.target.checked
+          ? [...new Set([...currentPick.filterConditions, condition])]
+          : currentPick.filterConditions.filter((item) => item !== condition);
+        this.updateCurrentPick({ filterConditions: nextConditions }, false);
+      },
+
+      handleClick(event) {
+        const trigger = event.target.closest('[data-pick-action]');
+        if (!trigger) return;
+        const action = trigger.dataset.pickAction;
+        if (action === 'set-date' && this.dateDrag.suppressClick) {
+          event.preventDefault();
+          this.dateDrag.moved = false;
+          this.dateDrag.suppressClick = false;
+          return;
+        }
+        const actions = {
+          'open-star-picker': () => this.openStarPicker(),
+          'remove-venue': () => this.removeVenue(trigger.dataset.id),
+          'add-condition': () => this.addCustomCondition(),
+          'set-date': () => this.setDate(trigger.dataset.date),
+          'go-step-2': () => this.goStep2()
+        };
+        if (actions[action]) actions[action]();
+      },
+
+      setDate(date) {
+        this.updateCurrentPick({ date });
+      },
+
+      handleDatePointerDown(event) {
+        const strip = event.target.closest('.date-strip');
+        if (!strip) return;
+        this.dateDrag = {
+          strip,
+          targetDate: event.target.closest('.date-item')?.dataset.date || '',
+          startX: event.clientX,
+          startScrollLeft: strip.scrollLeft,
+          moved: false,
+          active: true,
+          suppressClick: false
+        };
+        strip.classList.add('is-dragging');
+        strip.setPointerCapture?.(event.pointerId);
+      },
+
+      handleDatePointerMove(event) {
+        if (!this.dateDrag.active || !this.dateDrag.strip) return;
+        const deltaX = event.clientX - this.dateDrag.startX;
+        if (Math.abs(deltaX) > 14) this.dateDrag.moved = true;
+        if (!this.dateDrag.moved) return;
+        this.dateDrag.strip.scrollLeft = this.dateDrag.startScrollLeft - deltaX;
+      },
+
+      endDateDrag() {
+        if (!this.dateDrag.strip) return;
+        this.dateDrag.strip.classList.remove('is-dragging');
+        if (this.dateDrag.moved) {
+          this.dateDrag.suppressClick = true;
+        } else if (this.dateDrag.targetDate) {
+          this.dateDrag.suppressClick = true;
+          this.setDate(this.dateDrag.targetDate);
+        }
+        this.dateDrag.active = false;
+      },
+
+      cancelDateDrag() {
+        if (this.dateDrag.strip) this.dateDrag.strip.classList.remove('is-dragging');
+        this.dateDrag.active = false;
+        this.dateDrag.suppressClick = false;
+      },
+
+      updateCurrentPick(patch, shouldRender = true) {
+        const currentPick = Storage.loadCurrentPick();
+        Storage.saveCurrentPick({
+          ...currentPick,
+          ...patch,
+          weather: patch.userLocation !== undefined ? null : currentPick.weather
+        });
+        if (shouldRender) this.render();
+      },
+
+      getSelectedVenues(currentPick) {
+        const venues = Storage.loadVenues();
+        return currentPick.selectedVenueIds
+          .map((venueId) => venues.find((venue) => venue.id === venueId))
+          .filter(Boolean);
+      },
+
+      openStarPicker() {
+        const venues = Storage.loadVenues();
+        const currentPick = Storage.loadCurrentPick();
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Pick</p>
+              <h2 class="modal-title">从 Star 选择</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <div class="star-picker-list">
+            ${venues.length ? venues.map((venue) => {
+              const selected = currentPick.selectedVenueIds.includes(venue.id);
+              return `
+                <div class="star-picker-item">
+                  <div>
+                    <h3>${UI.escape(venue.name)}</h3>
+                    <p>${UI.escape(venue.sceneType || '场地')} · ${UI.escape(venue.hours || '时间待补充')}</p>
+                  </div>
+                  <button class="mini-btn is-primary" type="button" data-action="pick-add-star" data-id="${venue.id}" ${selected ? 'disabled' : ''}>${selected ? '已选择' : '选择'}</button>
+                </div>
+              `;
+            }).join('') : '<p class="placeholder-text">Star 里还没有场地。</p>'}
+          </div>
+        `);
+      },
+
+      openPasteModal() {
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Pick</p>
+              <h2 class="modal-title">粘贴地点信息</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <form id="pick-paste-form" class="venue-form">
+            <label class="field">
+              粘贴文本
+              <textarea name="rawText" placeholder="粘贴小红书/美团/地图里复制的地点信息"></textarea>
+            </label>
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">生成候选场地</button>
+              <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
+            </div>
+          </form>
+        `);
+      },
+
+      addVenueFromPaste(rawText) {
+        const draft = AIExtractor.extractVenue(rawText);
+        const venues = Storage.loadVenues();
+        const nextVenues = [draft, ...venues];
+        const currentPick = Storage.loadCurrentPick();
+        Storage.saveVenues(nextVenues);
+        Storage.saveCurrentPick({
+          ...currentPick,
+          selectedVenueIds: [...new Set([...currentPick.selectedVenueIds, draft.id])]
+        });
+        UI.closeModal();
+        UI.showStatus('已从粘贴文本生成候选场地。', 'success');
+        App.render();
+      },
+
+      addStarVenue(venueId) {
+        const currentPick = Storage.loadCurrentPick();
+        Storage.saveCurrentPick({
+          ...currentPick,
+          selectedVenueIds: [...new Set([...currentPick.selectedVenueIds, venueId])]
+        });
+        UI.closeModal();
+        UI.showStatus('已加入。', 'success');
+        App.render();
+      },
+
+      removeVenue(venueId) {
+        const currentPick = Storage.loadCurrentPick();
+        this.updateCurrentPick({
+          selectedVenueIds: currentPick.selectedVenueIds.filter((id) => id !== venueId)
+        });
+      },
+
+      addCustomCondition() {
+        const input = document.getElementById('custom-condition-input');
+        const value = input.value.trim();
+        if (!value) return;
+        const currentPick = Storage.loadCurrentPick();
+        const customConditions = [...new Set([...currentPick.customConditions, value])];
+        const filterConditions = [...new Set([...currentPick.filterConditions, value])];
+        Storage.saveCurrentPick({ ...currentPick, customConditions, filterConditions });
+        this.render();
+      },
+
+      goStep2() {
+        const currentPick = Storage.loadCurrentPick();
+        if (currentPick.selectedVenueIds.length < 2) {
+          UI.showStatus('至少选择 2 个场地后才能进入下一步。');
+          return;
+        }
+        Storage.saveCurrentPick({ ...currentPick, currentStep: 1, activeVenueIndex: 0 });
+        UI.showStatus('步骤 2.1 已完成，下一阶段会实现信息复制流程。', 'success');
+        this.render();
+      }
+    };
+
+    const WeatherService = {
+      getWeather(currentPick) {
+        if (!currentPick.userLocation) return '';
+        return `${currentPick.userLocation} · ${currentPick.date} ${currentPick.time} · 天气信息暂不可用，不影响继续对比。`;
+      }
+    };
+
+    const AIExtractor = {
+      extractVenue(rawText) {
+        const lines = rawText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+        const name = lines[0] || '未命名场地';
+        return {
+          id: StarManager.createId('v'),
+          name,
+          address: lines.find((line) => /区|路|街|号/.test(line)) || '',
+          hours: lines.find((line) => /\d{1,2}[:：]\d{2}/.test(line)) || '',
+          price: { amount: 0, unit: '日' },
+          tags: DEFAULT_FILTERS.filter((tag) => rawText.includes(tag)),
+          customTags: [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes: rawText,
+          images: [],
+          visitCount: 0,
+          createdAt: new Date().toISOString().slice(0, 10),
+          sceneType: rawText.includes('咖啡') ? '咖啡馆' : '自习室'
+        };
       }
     };
 
