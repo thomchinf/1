@@ -26,9 +26,26 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseCopy = response.clone();
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', responseCopy)));
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
   event.respondWith(
-    caches.match(event.request)
-      .then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const responseCopy = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseCopy)));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
       .catch(() => caches.match('./index.html'))
   );
 });
