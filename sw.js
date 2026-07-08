@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pickpick-v1';
+const CACHE_NAME = 'pickpick-v2';
 const CORE_ASSETS = [
   './',
   './index.html',

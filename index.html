@@ -1109,6 +1109,337 @@
       align-items: center;
     }
 
+    .my-shell {
+      display: grid;
+      gap: var(--space-3);
+      padding-top: var(--space-2);
+    }
+
+    .my-profile {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      min-height: 58px;
+    }
+
+    .my-avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #D9D9D9;
+    }
+
+    .my-profile p {
+      margin: 0;
+      color: #111111;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .my-month {
+      display: grid;
+      gap: 2px;
+      margin-top: var(--space-2);
+      color: #111111;
+    }
+
+    .my-month strong {
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .my-month span {
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .my-calendar-card {
+      border-radius: 18px;
+      background: #D8D8D8;
+      padding: var(--space-3);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 7px;
+    }
+
+    .calendar-day,
+    .calendar-weekday {
+      min-height: 27px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #111111;
+      font-size: 10px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .calendar-weekday {
+      min-height: 16px;
+      font-size: 9px;
+    }
+
+    .calendar-day {
+      display: grid;
+      place-items: center;
+      border-color: #111111;
+      border-radius: 4px;
+      background: transparent;
+      padding: 0;
+    }
+
+    .calendar-day.is-empty {
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .calendar-day.has-record {
+      background: rgba(255, 255, 255, 0.28);
+      color: #111111;
+    }
+
+    .calendar-day.is-today {
+      color: var(--color-primary-dark);
+      font-weight: 900;
+    }
+
+    .calendar-day.is-active {
+      border-color: #111111;
+      background: #FFFFFF;
+      color: #111111;
+      box-shadow: inset 0 0 0 1px #111111;
+    }
+
+    .recent-board {
+      position: relative;
+      display: grid;
+      gap: 0;
+      min-height: 110px;
+      border-radius: 0;
+      background: #D8D8D8;
+      padding: 10px 0 10px 20px;
+      overflow: hidden;
+    }
+
+    .recent-board::before,
+    .recent-board::after {
+      position: absolute;
+      left: -8px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--color-bg);
+      content: "";
+    }
+
+    .recent-board::before {
+      top: 11px;
+    }
+
+    .recent-board::after {
+      bottom: 11px;
+    }
+
+    .recent-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 76px 24px;
+      gap: 8px;
+      align-items: center;
+      min-height: 30px;
+      border: 0;
+      background: transparent;
+      color: #111111;
+      padding: 0 8px 0 16px;
+      text-align: left;
+    }
+
+    .recent-item::before {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      border-left: 1px solid #111111;
+      content: "";
+    }
+
+    .recent-item::after {
+      position: absolute;
+      left: -3px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border: 1px solid #111111;
+      border-radius: 50%;
+      background: #D8D8D8;
+      content: "";
+      transform: translateY(-50%);
+    }
+
+    .recent-item.is-active {
+      font-weight: 800;
+    }
+
+    .recent-date,
+    .recent-venue,
+    .recent-time,
+    .recent-place,
+    .record-card h3,
+    .record-card p {
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .recent-place {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #111111;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+    }
+
+    .my-tool-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--space-2);
+      align-items: center;
+      padding: 0 3px;
+    }
+
+    .my-tool-row input {
+      display: none;
+    }
+
+    .my-tool-btn {
+      display: grid;
+      place-items: center;
+      min-height: 34px;
+      border: 0;
+      background: transparent;
+      color: #111111;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .my-tool-btn.is-disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .record-book {
+      position: relative;
+      min-height: 132px;
+      margin-top: 2px;
+      padding: 0 28px 0 0;
+    }
+
+    .record-card {
+      position: relative;
+      z-index: 3;
+      display: grid;
+      gap: var(--space-3);
+      min-height: 132px;
+      border: 0;
+      border-radius: 8px;
+      background: #D8D8D8;
+      padding: var(--space-3);
+      box-shadow: 8px 0 0 #F2C5DD, 14px 0 0 #BFE4D6, 20px 0 0 #F1D89F;
+      overflow: hidden;
+    }
+
+    .record-card h3 {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .record-meta {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .record-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .record-page-count {
+      position: absolute;
+      right: 7px;
+      bottom: 7px;
+      z-index: 4;
+      color: #555555;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .record-nav {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-2);
+      margin-top: var(--space-3);
+    }
+
+    .record-note {
+      min-height: 54px;
+      border-radius: 8px;
+      resize: vertical;
+    }
+
+    .photo-stack {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .photo-thumb {
+      position: relative;
+      flex: 0 0 58px;
+      overflow: hidden;
+      border: 1px solid rgba(17, 17, 17, 0.18);
+      border-radius: 6px;
+      background: #F3F4F6;
+      aspect-ratio: 1;
+    }
+
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .photo-thumb button {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 24px;
+      min-height: 24px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(17,17,17,0.72);
+      color: #FFFFFF;
+    }
+
+    .photo-empty {
+      border: 1px dashed var(--color-line);
+      border-radius: 10px;
+      color: var(--color-muted);
+      padding: var(--space-2);
+      text-align: center;
+      font-size: 12px;
+    }
+
     .helper-text {
       margin: 0;
       color: var(--color-muted);
@@ -1444,6 +1775,7 @@
         Storage.init();
         StarManager.init();
         PickManager.init();
+        HistoryManager.init();
         this.bindNavigation();
         this.render();
         this.registerServiceWorker();
@@ -2754,21 +3086,385 @@
     };
 
     const HistoryManager = {
+      activeRecordIndex: 0,
+      activeDate: '',
+
+      init() {
+        const myTab = document.getElementById('tab-my');
+        myTab.addEventListener('click', (event) => this.handleClick(event));
+        myTab.addEventListener('input', (event) => this.handleInput(event));
+        myTab.addEventListener('change', (event) => this.handleChange(event));
+      },
+
       render() {
-        const history = Storage.loadHistory();
-        const latestRecord = history[0];
+        const history = this.getSortedHistory();
+        if (this.activeRecordIndex >= history.length) this.activeRecordIndex = Math.max(0, history.length - 1);
+        const activeRecord = history[this.activeRecordIndex] || history[0] || null;
+        const activeDate = this.activeDate || activeRecord?.date || this.formatDateValue(new Date());
+        this.activeDate = activeDate;
         document.getElementById('tab-my').innerHTML = `
-          ${UI.renderHeader({ id: 'my-title', text: '我的记录' }, '回看每一次选择，积累适合自己的场所经验。')}
-          <section class="panel">
-            ${UI.renderMetrics([
-              { value: history.length, label: '历史记录' },
-              { value: latestRecord ? latestRecord.venueIds.length : 0, label: '最近对比' },
-              { value: latestRecord ? latestRecord.filterConditions.length : 0, label: '使用条件' }
-            ])}
-            <h2 class="placeholder-title">历史记录模型已接入</h2>
-            <p class="placeholder-text">${latestRecord ? `${latestRecord.date} 在 ${latestRecord.userLocation} 选择了示例场地。` : '暂无历史记录。'} 日历和记录本会在 My 阶段实现。</p>
+          <h1 id="my-title" class="sr-only">我的记录</h1>
+          <div class="my-shell">
+            <section class="my-profile" aria-label="个人信息">
+              <div class="my-avatar" aria-hidden="true"></div>
+              <p>explorer of the world</p>
+            </section>
+            ${this.renderCalendar(history, activeDate)}
+            ${this.renderRecentRecords(history)}
+            ${this.renderToolRow(activeRecord)}
+            ${history.length ? this.renderRecordBook(history) : this.renderEmptyBook(activeDate)}
+          </div>
+        `;
+      },
+
+      getSortedHistory() {
+        return Storage.loadHistory().slice().sort((left, right) => {
+          const rightTime = new Date(right.date || 0).getTime();
+          const leftTime = new Date(left.date || 0).getTime();
+          return rightTime - leftTime;
+        });
+      },
+
+      renderCalendar(history, activeDate) {
+        const calendarDate = new Date(`${activeDate}T00:00:00`);
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const dayCount = new Date(year, month + 1, 0).getDate();
+        const todayValue = this.formatDateValue(new Date());
+        const blankCount = (firstDay.getDay() + 6) % 7;
+        const dateRecordMap = history.reduce((map, record, index) => {
+          if (record.date && !map.has(record.date)) map.set(record.date, index);
+          return map;
+        }, new Map());
+        const blanks = Array.from({ length: blankCount }, () => '<span class="calendar-day is-empty"></span>');
+        const days = Array.from({ length: dayCount }, (_, index) => {
+          const day = index + 1;
+          const value = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const recordIndex = dateRecordMap.get(value);
+          const hasRecord = typeof recordIndex !== 'undefined';
+          return `
+            <button
+              class="calendar-day${hasRecord ? ' has-record' : ''}${value === activeDate ? ' is-active' : ''}${value === todayValue ? ' is-today' : ''}"
+              type="button"
+              data-history-action="select-record"
+              data-date="${value}"
+              data-index="${hasRecord ? recordIndex : ''}"
+              aria-label="${value}${hasRecord ? ' 有记录' : ''}"
+            >${day}</button>
+          `;
+        });
+        return `
+          <section>
+            <div class="my-month">
+              <strong>${month + 1}月</strong>
+              <span>${year}年${month + 1}月${Number(activeDate.slice(8, 10))}日</span>
+            </div>
+            <div class="my-calendar-card">
+              <div class="calendar-grid">
+                ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => `<span class="calendar-weekday">${day}</span>`).join('')}
+                ${blanks.join('')}
+                ${days.join('')}
+              </div>
+            </div>
           </section>
         `;
+      },
+
+      renderRecentRecords(history) {
+        const rows = Array.from({ length: 3 }, (_, index) => history[index] || null);
+        return `
+          <section class="recent-board" aria-label="最近三条记录">
+            ${rows.map((record, index) => this.renderRecentRow(record, index)).join('')}
+          </section>
+        `;
+      },
+
+      renderRecentRow(record, index) {
+        const venue = record ? this.getPrimaryVenue(record) : null;
+        const time = record ? this.getRecordTime(record) : '';
+        return `
+          <button class="recent-item${index === this.activeRecordIndex ? ' is-active' : ''}" type="button" data-history-action="select-record" data-index="${record ? index : ''}" ${record ? '' : 'disabled'}>
+            <span class="recent-date">${record ? this.formatShortDate(record.date) : '-'}</span>
+            <span class="recent-venue">${UI.escape(venue?.name || '-')}</span>
+            <span class="recent-time">${UI.escape(time || '-')}</span>
+            <span class="recent-place" aria-hidden="true">⊗</span>
+          </button>
+        `;
+      },
+
+      renderToolRow(record) {
+        const disabledClass = record ? '' : ' is-disabled';
+        const disabledAttr = record ? '' : 'aria-disabled="true"';
+        return `
+          <section class="my-tool-row" aria-label="记录工具">
+            <button class="my-tool-btn" type="button" data-history-action="create-record" aria-label="新增记录">⊕</button>
+            <label class="my-tool-btn${disabledClass}" ${disabledAttr} aria-label="上传照片">
+              ⌾
+              ${record ? `<input type="file" accept="image/*" multiple data-history-photo="upload" data-id="${record.id}">` : ''}
+            </label>
+            <button class="my-tool-btn${disabledClass}" type="button" data-history-action="focus-note" ${record ? '' : 'disabled'} aria-label="编辑备注">♧</button>
+            <button class="my-tool-btn${disabledClass}" type="button" data-history-action="remove-record" ${record ? '' : 'disabled'} aria-label="删除记录">♜</button>
+            <button class="my-tool-btn${disabledClass}" type="button" data-history-action="remove-photo" data-id="${record?.id || ''}" data-index="${Math.max(0, (record?.photos || []).length - 1)}" ${(record?.photos || []).length ? '' : 'disabled'} aria-label="删除照片">⊖</button>
+          </section>
+        `;
+      },
+
+      renderEmptyBook(activeDate) {
+        return `
+          <section class="record-book">
+            <article class="record-card">
+              <div class="record-meta">
+                <h3>${UI.escape(activeDate)}</h3>
+                <p>暂无记录，点击日期或左侧加号创建记录。</p>
+              </div>
+            </article>
+          </section>
+        `;
+      },
+
+      renderRecordBook(history) {
+        const record = history[this.activeRecordIndex] || history[0];
+        const venue = this.getPrimaryVenue(record);
+        const venueNames = this.getRecordVenueNames(record);
+        const conditions = record.filterConditions || [];
+        return `
+          <section class="record-book" aria-label="记录本">
+            <article class="record-card">
+              <div class="record-meta">
+                <h3>${UI.escape(venue?.name || '未命名记录')}</h3>
+                <p>${UI.escape(this.formatShortDate(record.date))} · ${UI.escape(record.userLocation || '-')} · ${UI.escape(this.getRecordTime(record) || '-')}</p>
+                <p>场地：${UI.escape(venueNames || '-')}</p>
+              </div>
+              <div class="record-tags">
+                ${conditions.length ? conditions.map((condition) => `<span class="tag is-primary">${UI.escape(condition)}</span>`).join('') : '<span class="tag">-</span>'}
+              </div>
+              <textarea class="record-note" data-history-field="notes" data-id="${record.id}" placeholder="写下这次选择的体验">${UI.escape(record.notes || '')}</textarea>
+              <div class="photo-stack">
+                ${this.renderPhotos(record)}
+              </div>
+              <span class="record-page-count">${this.activeRecordIndex + 1}/${history.length}</span>
+            </article>
+            <div class="record-nav">
+              <button class="secondary-btn" type="button" data-history-action="prev-record" ${this.activeRecordIndex <= 0 ? 'disabled' : ''}>上一页</button>
+              <button class="secondary-btn" type="button" data-history-action="next-record" ${this.activeRecordIndex >= history.length - 1 ? 'disabled' : ''}>下一页</button>
+            </div>
+          </section>
+        `;
+      },
+
+      renderPhotos(record) {
+        const photos = record.photos || [];
+        if (!photos.length) return '<div class="photo-empty">照片位置</div>';
+        return photos.map((photo, index) => `
+          <div class="photo-thumb">
+            <img src="${UI.escape(photo)}" alt="记录照片 ${index + 1}">
+            <button type="button" data-history-action="remove-photo" data-id="${record.id}" data-index="${index}" aria-label="删除照片">×</button>
+          </div>
+        `).join('');
+      },
+
+      handleClick(event) {
+        const trigger = event.target.closest('[data-history-action]');
+        if (!trigger) return;
+        const action = trigger.dataset.historyAction;
+        if (action === 'select-record') {
+          this.selectRecord(trigger.dataset.index, trigger.dataset.date);
+          return;
+        }
+        if (action === 'create-record') {
+          this.createRecordForDate(this.activeDate || this.formatDateValue(new Date()));
+          return;
+        }
+        if (action === 'focus-note') {
+          document.querySelector('.record-note')?.focus();
+          return;
+        }
+        if (action === 'remove-record') {
+          this.removeActiveRecord();
+          return;
+        }
+        if (action === 'prev-record') {
+          this.activeRecordIndex = Math.max(0, this.activeRecordIndex - 1);
+          this.activeDate = this.getSortedHistory()[this.activeRecordIndex]?.date || this.activeDate;
+          this.render();
+          return;
+        }
+        if (action === 'next-record') {
+          const history = this.getSortedHistory();
+          this.activeRecordIndex = Math.min(history.length - 1, this.activeRecordIndex + 1);
+          this.activeDate = history[this.activeRecordIndex]?.date || this.activeDate;
+          this.render();
+          return;
+        }
+        if (action === 'remove-photo') {
+          this.removePhoto(trigger.dataset.id, Number(trigger.dataset.index));
+        }
+      },
+
+      handleInput(event) {
+        if (event.target.dataset.historyField !== 'notes') return;
+        this.saveRecordPatch(event.target.dataset.id, { notes: event.target.value }, false);
+      },
+
+      handleChange(event) {
+        const photoInput = event.target.dataset.historyPhoto;
+        if (!photoInput) return;
+        this.handlePhotoUpload(event.target.dataset.id, Array.from(event.target.files || []));
+        event.target.value = '';
+      },
+
+      selectRecord(indexValue, dateValue) {
+        if (dateValue) this.activeDate = dateValue;
+        if (indexValue !== '') {
+          this.activeRecordIndex = Number(indexValue);
+          this.render();
+          return;
+        }
+        if (dateValue) this.createRecordForDate(dateValue);
+      },
+
+      createRecordForDate(date) {
+        const history = Storage.loadHistory();
+        const existingIndex = this.getSortedHistory().findIndex((record) => record.date === date);
+        if (existingIndex >= 0) {
+          this.activeRecordIndex = existingIndex;
+          this.activeDate = date;
+          this.render();
+          return;
+        }
+        const record = {
+          id: StarManager.createId('cr'),
+          date,
+          userLocation: '',
+          weather: '',
+          venueIds: [],
+          chosenVenueId: '',
+          filterConditions: [],
+          notes: '',
+          photos: []
+        };
+        if (!Storage.saveHistory([record, ...history])) return;
+        this.activeRecordIndex = 0;
+        this.activeDate = date;
+        UI.showStatus('已创建当天记录，可以上传照片或写备注。', 'success');
+        this.render();
+      },
+
+      saveRecordPatch(recordId, patch, shouldRender = true) {
+        const history = Storage.loadHistory();
+        const nextHistory = history.map((record) => (
+          record.id === recordId ? { ...record, ...patch } : record
+        ));
+        const saved = Storage.saveHistory(nextHistory);
+        if (!saved) return false;
+        if (shouldRender) this.render();
+        return true;
+      },
+
+      async handlePhotoUpload(recordId, files) {
+        if (!files.length) return;
+        const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+        if (!imageFiles.length) {
+          UI.showStatus('请选择图片文件。');
+          return;
+        }
+        try {
+          const compressedPhotos = await Promise.all(imageFiles.map((file) => this.compressImage(file)));
+          const history = Storage.loadHistory();
+          const nextHistory = history.map((record) => {
+            if (record.id !== recordId) return record;
+            return { ...record, photos: [...(record.photos || []), ...compressedPhotos] };
+          });
+          if (!Storage.saveHistory(nextHistory)) return;
+          UI.showStatus('照片已保存。', 'success');
+          this.render();
+        } catch (error) {
+          UI.showStatus('图片处理失败，请换一张图片重试。');
+        }
+      },
+
+      compressImage(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error('image failed'));
+            image.onload = () => {
+              const maxSize = 1200;
+              const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.max(1, Math.round(image.width * scale));
+              canvas.height = Math.max(1, Math.round(image.height * scale));
+              const context = canvas.getContext('2d');
+              context.drawImage(image, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.72));
+            };
+            image.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      },
+
+      removeActiveRecord() {
+        const history = this.getSortedHistory();
+        const record = history[this.activeRecordIndex];
+        if (!record) return;
+        const nextHistory = Storage.loadHistory().filter((item) => item.id !== record.id);
+        if (!Storage.saveHistory(nextHistory)) return;
+        const nextSorted = this.getSortedHistory();
+        this.activeRecordIndex = Math.min(Math.max(0, this.activeRecordIndex - 1), Math.max(0, nextSorted.length - 1));
+        this.activeDate = nextSorted[this.activeRecordIndex]?.date || this.formatDateValue(new Date());
+        UI.showStatus('记录已删除。', 'success');
+        this.render();
+      },
+
+      removePhoto(recordId, photoIndex) {
+        const history = Storage.loadHistory();
+        const nextHistory = history.map((record) => {
+          if (record.id !== recordId) return record;
+          return {
+            ...record,
+            photos: (record.photos || []).filter((_, index) => index !== photoIndex)
+          };
+        });
+        if (!Storage.saveHistory(nextHistory)) return;
+        UI.showStatus('照片已删除。', 'success');
+        this.render();
+      },
+
+      getPrimaryVenue(record) {
+        const venues = Storage.loadVenues();
+        return venues.find((venue) => venue.id === record.chosenVenueId)
+          || venues.find((venue) => venue.id === (record.venueIds || [])[0])
+          || null;
+      },
+
+      getRecordTime(record) {
+        const venue = this.getPrimaryVenue(record);
+        return venue?.hours || '';
+      },
+
+      formatShortDate(date = '') {
+        const parts = date.split('-');
+        if (parts.length !== 3) return '-';
+        return `${Number(parts[1])}.${Number(parts[2])}`;
+      },
+
+      getRecordVenueNames(record) {
+        const venues = Storage.loadVenues();
+        return (record.venueIds || [])
+          .map((venueId) => venues.find((venue) => venue.id === venueId)?.name)
+          .filter(Boolean)
+          .join('、');
+      },
+
+      formatDateValue(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
       }
     };
 
