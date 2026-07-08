@@ -348,6 +348,12 @@
       font-weight: 700;
     }
 
+    .tag.is-muted {
+      background: #E5E7EB;
+      color: #9CA3AF;
+      text-decoration: line-through;
+    }
+
     .venue-card .tag {
       background: rgba(255, 255, 255, 0.2);
       color: rgba(255, 255, 255, 0.88);
@@ -982,6 +988,127 @@
       text-decoration: underline;
     }
 
+    .step3-shell {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    .map-placeholder {
+      position: relative;
+      overflow: hidden;
+      min-height: 220px;
+      border: 1px solid #111111;
+      background:
+        linear-gradient(90deg, rgba(17,17,17,0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(17,17,17,0.08) 1px, transparent 1px),
+        #F3F4F6;
+      background-size: 44px 44px;
+    }
+
+    .map-route {
+      position: absolute;
+      left: 12%;
+      right: 10%;
+      top: 50%;
+      border-top: 2px dashed rgba(17,17,17,0.5);
+      transform: rotate(-10deg);
+    }
+
+    .map-pin {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #111111;
+      border-radius: 50% 50% 50% 0;
+      background: var(--color-primary);
+      transform: rotate(-45deg);
+    }
+
+    .map-pin.is-origin {
+      left: 16%;
+      top: 58%;
+      background: #FFFFFF;
+    }
+
+    .map-pin.is-destination {
+      right: 22%;
+      top: 32%;
+    }
+
+    .map-label {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      max-width: 120px;
+      border: 1px solid #111111;
+      background: #FFFFFF;
+      padding: 5px 7px;
+      font-size: 11px;
+      font-weight: 800;
+      transform: translate(-50%, -50%);
+    }
+
+    .filter-summary {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .result-list {
+      display: grid;
+      gap: var(--space-3);
+    }
+
+    .result-card {
+      display: grid;
+      gap: var(--space-3);
+      border: 1px solid #111111;
+      background: #FFFFFF;
+      padding: var(--space-3);
+    }
+
+    .result-card.is-dimmed {
+      opacity: 0.58;
+    }
+
+    .result-card-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
+    .result-check {
+      width: 18px;
+      min-height: 18px;
+      accent-color: var(--color-primary);
+    }
+
+    .result-card h3,
+    .result-card p {
+      margin: 0;
+    }
+
+    .result-card h3 {
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .result-score {
+      border-radius: 999px;
+      background: #111111;
+      color: #FFFFFF;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .result-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
     .helper-text {
       margin: 0;
       color: var(--color-muted);
@@ -1212,6 +1339,7 @@
       filterConditions: ['有插座', '安静'],
       customConditions: [],
       copiedInfo: {},
+      confirmedVenueIds: [],
       currentStep: 1,
       activeVenueIndex: 0,
       step2Completed: false
@@ -1235,6 +1363,7 @@
           this.write(this.keys.seeded, true);
         } else {
           this.migrateVenues();
+          this.migrateCurrentPick();
         }
       },
 
@@ -1283,6 +1412,12 @@
           return nextVenue;
         });
         if (changed) this.saveVenues(nextVenues);
+      },
+
+      migrateCurrentPick() {
+        const currentPick = this.loadCurrentPick();
+        if (typeof currentPick.confirmedVenueIds !== 'undefined') return;
+        this.saveCurrentPick({ ...DEFAULT_CURRENT_PICK, ...currentPick, confirmedVenueIds: [] });
       },
 
       loadHistory() {
@@ -1916,6 +2051,10 @@
 
       render() {
         const currentPick = Storage.loadCurrentPick();
+        if (this.viewStep === 3) {
+          this.renderStep3(currentPick);
+          return;
+        }
         if (this.viewStep === 2) {
           this.renderStep2(currentPick);
           return;
@@ -2029,6 +2168,111 @@
             <strong>${title}</strong>
           </button>
         `;
+      },
+
+      renderStep3(currentPick) {
+        const selectedVenues = this.getSelectedVenues(currentPick);
+        if (!selectedVenues.length) {
+          this.goStep1();
+          return;
+        }
+        const scoredVenues = this.getScoredVenues(selectedVenues, currentPick.filterConditions);
+        const filteredVenues = scoredVenues.filter((item) => item.matches.length > 0 || !currentPick.filterConditions.length);
+        const visibleVenues = filteredVenues.length ? filteredVenues : scoredVenues;
+        const confirmedVenueIds = currentPick.confirmedVenueIds?.length
+          ? currentPick.confirmedVenueIds
+          : visibleVenues.slice(0, 1).map((item) => item.venue.id);
+        if (!currentPick.confirmedVenueIds?.length && confirmedVenueIds.length) {
+          Storage.saveCurrentPick({ ...currentPick, confirmedVenueIds });
+          currentPick.confirmedVenueIds = confirmedVenueIds;
+        }
+        document.getElementById('tab-pick').innerHTML = `
+          <div class="step2-nav" aria-label="Pick 结果导航">
+            <button class="pick-arrow-btn" type="button" data-pick-action="back-step-2" aria-label="返回 2.2">←</button>
+          </div>
+          ${UI.renderHeader({ id: 'pick-result-title', text: 'pick result' }, '地图筛选与确认')}
+          <section class="panel pick-board">
+            <div class="step3-shell">
+              ${this.renderMapPlaceholder(visibleVenues, currentPick)}
+              <div class="filter-summary">
+                <p class="helper-text">筛选条件</p>
+                ${this.renderFilterTags(currentPick.filterConditions, visibleVenues)}
+              </div>
+              <div class="result-list">
+                ${visibleVenues.map((item) => this.renderResultCard(item, currentPick)).join('')}
+              </div>
+              ${visibleVenues.length ? '' : '<p class="placeholder-text">没有符合条件的场地，返回 2.1 调整条件。</p>'}
+            </div>
+          </section>
+        `;
+      },
+
+      renderMapPlaceholder(scoredVenues, currentPick) {
+        const firstVenue = scoredVenues[0]?.venue;
+        const secondVenue = scoredVenues[1]?.venue;
+        return `
+          <div class="map-placeholder" aria-label="静态地图占位">
+            <div class="map-route"></div>
+            <span class="map-pin is-origin"></span>
+            <span class="map-pin is-destination"></span>
+            <div class="map-label" style="--x: 22%; --y: 68%;">${UI.escape(currentPick.userLocation || '出发点')}</div>
+            ${firstVenue ? `<div class="map-label" style="--x: 70%; --y: 34%;">${UI.escape(firstVenue.name)}</div>` : ''}
+            ${secondVenue ? `<div class="map-label" style="--x: 52%; --y: 58%;">${UI.escape(secondVenue.name)}</div>` : ''}
+          </div>
+        `;
+      },
+
+      renderFilterTags(filterConditions, scoredVenues) {
+        const availableTags = new Set(scoredVenues.flatMap((item) => [...item.venue.tags, ...item.venue.customTags]));
+        const tags = filterConditions.length ? filterConditions : ['暂无筛选条件'];
+        return `
+          <div class="tag-row">
+            ${tags.map((tag) => {
+              const matched = availableTags.has(tag);
+              return `<span class="tag${matched ? ' is-primary' : ' is-muted'}">${UI.escape(tag)}</span>`;
+            }).join('')}
+          </div>
+        `;
+      },
+
+      renderResultCard(item, currentPick) {
+        const { venue, matches, misses, score } = item;
+        const checked = currentPick.confirmedVenueIds?.includes(venue.id);
+        const allTags = [...venue.tags, ...venue.customTags];
+        const copiedInfo = currentPick.copiedInfo?.[venue.id] || {};
+        const copiedCount = Object.values(copiedInfo).filter(Boolean).length;
+        return `
+          <article class="result-card${matches.length ? '' : ' is-dimmed'}">
+            <div class="result-card-head">
+              <input class="result-check" type="checkbox" data-pick-action="toggle-confirmed" data-id="${venue.id}" ${checked ? 'checked' : ''} aria-label="显示 ${UI.escape(venue.name)}">
+              <div>
+                <h3>${UI.escape(venue.name)}</h3>
+                <p class="venue-meta">${UI.escape(venue.address || venue.hours || '信息待完善')}</p>
+              </div>
+              <span class="result-score">${score}</span>
+            </div>
+            <div class="tag-row">
+              ${allTags.length ? allTags.map((tag) => `<span class="tag${matches.includes(tag) ? ' is-primary' : ''}">${UI.escape(tag)}</span>`).join('') : '<span class="tag is-muted">暂无标签</span>'}
+              ${misses.map((tag) => `<span class="tag is-muted">${UI.escape(tag)}</span>`).join('')}
+            </div>
+            <div class="result-actions">
+              <p class="venue-meta">已复制 ${copiedCount}/3 个渠道信息</p>
+              <button class="mini-btn is-primary" type="button" data-pick-action="save-result-star" data-id="${venue.id}">收藏到 Star</button>
+            </div>
+          </article>
+        `;
+      },
+
+      getScoredVenues(venues, filterConditions) {
+        return venues.map((venue) => {
+          const allTags = [...venue.tags, ...venue.customTags];
+          const matches = filterConditions.filter((condition) => allTags.includes(condition));
+          const misses = filterConditions.filter((condition) => !allTags.includes(condition));
+          const score = filterConditions.length
+            ? Math.round((matches.length / filterConditions.length) * 100)
+            : 100;
+          return { venue, matches, misses, score };
+        }).sort((a, b) => b.score - a.score);
       },
 
       renderVenueCarousel(selectedVenues, activeIndex) {
@@ -2150,9 +2394,12 @@
         }
         const actions = {
           'back-step-1': () => this.goStep1(),
+          'back-step-2': () => this.goStep2View(),
           'open-star-picker': () => this.openStarPicker(),
           'open-channel': () => this.openChannel(trigger.dataset.channel, trigger.dataset.query),
           'remove-venue': () => this.removeVenue(trigger.dataset.id),
+          'toggle-confirmed': () => this.toggleConfirmedVenue(trigger.dataset.id),
+          'save-result-star': () => this.saveResultToStar(trigger.dataset.id),
           'add-condition': () => this.addCustomCondition(),
           'set-date': () => this.setDate(trigger.dataset.date),
           'go-step-2': () => this.goStep2(),
@@ -2279,6 +2526,11 @@
         this.updateCurrentPick({ currentStep: 1, ...patch });
       },
 
+      goStep2View() {
+        this.viewStep = 2;
+        this.updateCurrentPick({ currentStep: 2 });
+      },
+
       openStep2ForVenue(venueId) {
         const currentPick = Storage.loadCurrentPick();
         const selectedVenueIds = [...new Set([...currentPick.selectedVenueIds, venueId])];
@@ -2337,6 +2589,28 @@
         Storage.saveCurrentPick({ ...currentPick, copiedInfo });
         UI.closeModal();
         UI.showStatus('链接已保存。', 'success');
+      },
+
+      toggleConfirmedVenue(venueId) {
+        const currentPick = Storage.loadCurrentPick();
+        const confirmedVenueIds = currentPick.confirmedVenueIds || [];
+        const nextConfirmed = confirmedVenueIds.includes(venueId)
+          ? confirmedVenueIds.filter((id) => id !== venueId)
+          : [...confirmedVenueIds, venueId];
+        this.updateCurrentPick({ confirmedVenueIds: nextConfirmed });
+      },
+
+      saveResultToStar(venueId) {
+        const venues = Storage.loadVenues();
+        const venue = venues.find((item) => item.id === venueId);
+        if (!venue) return;
+        Storage.saveVenues(venues.map((item) => (
+          item.id === venueId
+            ? { ...item, visitCount: (Number(item.visitCount) || 0) + 1 }
+            : item
+        )));
+        UI.showStatus('已收藏到 Star。', 'success');
+        this.render();
       },
 
       getSelectedVenues(currentPick) {
@@ -2432,8 +2706,20 @@
       },
 
       goStep3() {
-        Storage.saveCurrentPick({ ...Storage.loadCurrentPick(), currentStep: 3, step2Completed: true });
-        UI.showStatus('2.3 地图筛选页面会在下一步开发。', 'success');
+        const currentPick = Storage.loadCurrentPick();
+        const selectedVenues = this.getSelectedVenues(currentPick);
+        const confirmedVenueIds = currentPick.confirmedVenueIds?.length
+          ? currentPick.confirmedVenueIds
+          : selectedVenues.slice(0, 1).map((venue) => venue.id);
+        Storage.saveCurrentPick({
+          ...currentPick,
+          currentStep: 3,
+          step2Completed: true,
+          confirmedVenueIds
+        });
+        this.viewStep = 3;
+        UI.clearStatus();
+        this.render();
       }
     };
 
