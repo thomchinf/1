@@ -988,6 +988,84 @@
       text-decoration: underline;
     }
 
+    .star-cup-card {
+      display: grid;
+      place-items: center;
+      min-height: 218px;
+      border-radius: 8px;
+      background: #D8D8D8;
+      padding: var(--space-4);
+    }
+
+    .star-cup {
+      position: relative;
+      width: 190px;
+      height: 156px;
+      color: #0F172A;
+      text-align: center;
+    }
+
+    .star-cup::before {
+      position: absolute;
+      left: 42px;
+      right: 42px;
+      top: 18px;
+      bottom: 8px;
+      border: 1.5px solid #0F172A;
+      border-radius: 26px 26px 36px 36px;
+      content: "";
+    }
+
+    .star-cup::after {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      top: 50px;
+      border-top: 1px solid #0F172A;
+      content: "";
+    }
+
+    .star-cup span {
+      position: absolute;
+      left: 34px;
+      right: 34px;
+      top: 88px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 16px;
+      line-height: 1.2;
+      text-decoration: underline;
+    }
+
+    .star-info-panel {
+      display: grid;
+      gap: var(--space-2);
+      border-radius: 8px;
+      background: #F3F4F6;
+      padding: var(--space-3);
+    }
+
+    .star-info-row {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: var(--space-2);
+      align-items: start;
+      color: #111111;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .star-info-row strong {
+      font-weight: 800;
+    }
+
+    .star-info-row span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      color: var(--color-muted);
+    }
+
     .step3-shell {
       display: grid;
       gap: var(--space-4);
@@ -1740,6 +1818,10 @@
             nextVenue.membershipInfo = defaultVenue?.membershipInfo || '';
             changed = true;
           }
+          if (typeof nextVenue.channelLinks === 'undefined') {
+            nextVenue.channelLinks = defaultVenue?.channelLinks || {};
+            changed = true;
+          }
           return nextVenue;
         });
         if (changed) this.saveVenues(nextVenues);
@@ -1894,6 +1976,7 @@
       query: '',
       viewStep: 1,
       activeVenueId: '',
+      step12Draft: null,
 
       init() {
         document.getElementById('tab-star').addEventListener('click', (event) => this.handleClick(event));
@@ -2000,7 +2083,7 @@
         const trigger = event.target.closest('[data-action]');
         if (!trigger) return;
         if (trigger.dataset.action === 'open-channel') {
-          PickManager.openChannelByVenueId(this.activeVenueId, trigger.dataset.channel, trigger.dataset.query);
+          this.openChannel(trigger.dataset.channel, trigger.dataset.query);
           return;
         }
         this.runAction(trigger.dataset.action, trigger.dataset.id);
@@ -2028,7 +2111,11 @@
         if (event.target.id === 'channel-link-form') {
           event.preventDefault();
           const formData = new FormData(event.target);
-          PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+          if (event.target.dataset.owner === 'pick') {
+            PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+          } else {
+            this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+          }
           return;
         }
         if (event.target.id !== 'venue-form') return;
@@ -2044,6 +2131,8 @@
           'delete-venue': () => this.deleteVenue(id),
           'add-to-pick': () => this.addToPick(id),
           'back-star-list': () => this.goStep1(),
+          'confirm-star-info': () => this.confirmStep12(),
+          'clear-star-info': () => this.clearStep12Info(),
           'clear-search': () => {
             this.query = '';
             this.render();
@@ -2070,6 +2159,7 @@
           membershipInfo: '',
           notes: '',
           images: [],
+          channelLinks: {},
           visitCount: 0,
           createdAt: '',
           sceneType: '自习室'
@@ -2199,6 +2289,7 @@
           membershipInfo: readField('membershipInfo', existingVenue?.membershipInfo || ''),
           notes: readField('notes', existingVenue?.notes || ''),
           images: existingVenue ? existingVenue.images : [],
+          channelLinks: existingVenue ? (existingVenue.channelLinks || {}) : {},
           visitCount: existingVenue ? existingVenue.visitCount : 0,
           createdAt: existingVenue ? existingVenue.createdAt : new Date().toISOString().slice(0, 10),
           sceneType: formData.get('sceneType') || existingVenue?.sceneType || '自习室'
@@ -2206,6 +2297,12 @@
 
         if (!nextVenue.name) {
           UI.showStatus('请先填写场地名称。');
+          return;
+        }
+
+        if (!existingVenue && form.dataset.completeTarget === 'star') {
+          UI.closeModal();
+          this.openStep12Draft(nextVenue);
           return;
         }
 
@@ -2316,6 +2413,14 @@
 
       openStep12ForVenue(venueId) {
         this.activeVenueId = venueId;
+        this.step12Draft = null;
+        this.viewStep = 2;
+        App.switchTab('star');
+      },
+
+      openStep12Draft(venue) {
+        this.step12Draft = { ...venue, channelLinks: venue.channelLinks || {} };
+        this.activeVenueId = venue.id;
         this.viewStep = 2;
         App.switchTab('star');
       },
@@ -2323,27 +2428,173 @@
       goStep1() {
         this.viewStep = 1;
         this.activeVenueId = '';
+        this.step12Draft = null;
         this.render();
       },
 
+      getChannelName(channel) {
+        const channelNames = {
+          meituan: '美团',
+          xiaohongshu: '小红书',
+          amap: '高德',
+          dianping: '大众点评'
+        };
+        return channelNames[channel] || '渠道';
+      },
+
+      openChannel(channel, query) {
+        const venue = this.getStep12Venue();
+        if (!venue) return;
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">${UI.escape(this.getChannelName(channel))}</p>
+              <h2 class="modal-title">粘贴链接</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <form id="channel-link-form" class="venue-form" data-owner="star" data-venue-id="${venue.id}" data-channel="${channel}">
+            <p class="placeholder-text">搜索：${UI.escape(query || venue.name)}，把${UI.escape(this.getChannelName(channel))}链接粘贴到这里。</p>
+            <label class="field">
+              链接
+              <input name="link" value="${UI.escape(venue.channelLinks?.[channel] || '')}" placeholder="粘贴 ${UI.escape(this.getChannelName(channel))} 链接">
+            </label>
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">保存链接</button>
+              <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
+            </div>
+          </form>
+        `);
+      },
+
+      saveChannelLink(venueId, channel, link) {
+        if (this.step12Draft && this.step12Draft.id === venueId) {
+          this.step12Draft = {
+            ...this.step12Draft,
+            channelLinks: {
+              ...(this.step12Draft.channelLinks || {}),
+              [channel]: link
+            }
+          };
+          UI.closeModal();
+          UI.showStatus('链接已保存。', 'success');
+          this.renderStep12();
+          return;
+        }
+        const venues = Storage.loadVenues();
+        const venue = venues.find((item) => item.id === venueId);
+        if (!venue) return;
+        const nextVenue = {
+          ...venue,
+          channelLinks: {
+            ...(venue.channelLinks || {}),
+            [channel]: link
+          }
+        };
+        if (!Storage.saveVenues(venues.map((item) => (item.id === venueId ? nextVenue : item)))) return;
+        UI.closeModal();
+        UI.showStatus('链接已保存。', 'success');
+        this.renderStep12();
+      },
+
+      confirmStep12() {
+        const venue = this.getStep12Venue();
+        if (!venue) return;
+        if (this.step12Draft) {
+          const venues = Storage.loadVenues();
+          if (!Storage.saveVenues([this.step12Draft, ...venues])) return;
+        }
+        this.goStep1();
+        UI.showStatus('已保存到 Star 库。', 'success');
+      },
+
+      clearStep12Info() {
+        if (this.step12Draft) {
+          this.step12Draft = {
+            ...this.step12Draft,
+            address: '',
+            hours: '',
+            price: { amount: 0, unit: this.step12Draft.price?.unit || '日' },
+            tags: [],
+            customTags: [],
+            menuInfo: '',
+            membershipInfo: '',
+            notes: '',
+            channelLinks: {}
+          };
+          UI.showStatus('信息已清空。', 'success');
+          this.renderStep12();
+          return;
+        }
+        const venues = Storage.loadVenues();
+        const venue = venues.find((item) => item.id === this.activeVenueId);
+        if (!venue) return;
+        const nextVenue = {
+          ...venue,
+          address: '',
+          hours: '',
+          price: { amount: 0, unit: venue.price?.unit || '日' },
+          tags: [],
+          customTags: [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes: '',
+          channelLinks: {}
+        };
+        if (!Storage.saveVenues(venues.map((item) => (item.id === venue.id ? nextVenue : item)))) return;
+        UI.showStatus('信息已清空。', 'success');
+        this.renderStep12();
+      },
+
+      getStep12Venue() {
+        return this.step12Draft || Storage.loadVenues().find((item) => item.id === this.activeVenueId);
+      },
+
       renderStep12() {
-        const venue = Storage.loadVenues().find((item) => item.id === this.activeVenueId) || Storage.loadVenues()[0];
+        const venue = this.getStep12Venue();
         if (!venue) {
           this.goStep1();
           return;
         }
         this.activeVenueId = venue.id;
-        document.getElementById('tab-star').innerHTML = PickManager.renderCopyStep({
-          title: 'Enjoy coffee any time',
-          subtitle: 'Star 1.2',
-          venue,
-          venues: [venue],
-          activeIndex: 0,
-          progress: '1/1',
-          backAction: 'back-star-list',
-          nextAction: '',
-          actionAttribute: 'data-action'
-        });
+        document.getElementById('tab-star').innerHTML = `
+          <div class="step2-nav" aria-label="Star 信息补全导航">
+            <button class="pick-arrow-btn" type="button" data-action="back-star-list" aria-label="返回">←</button>
+          </div>
+          ${UI.renderHeader({ id: 'star-copy-title', text: 'Enjoy coffee any time' }, 'Star 1.2')}
+          <section class="panel pick-board">
+            <div class="step2-shell">
+              <div class="channel-orbit">
+                ${PickManager.renderChannelCard('xiaohongshu', '小红书', '环境', venue.name, 'data-action')}
+                ${PickManager.renderChannelCard('meituan', '美团', '价格', venue.name, 'data-action')}
+                ${PickManager.renderChannelCard('amap', '高德', '位置', venue.name, 'data-action')}
+              </div>
+              <div class="star-cup-card">
+                <div class="star-cup">
+                  <span>${UI.escape(venue.name)}</span>
+                </div>
+              </div>
+              <div class="star-info-panel" aria-label="场地补充信息">
+                <div class="star-info-row">
+                  <strong>时间</strong>
+                  <span>${UI.escape(venue.hours || '-')}</span>
+                </div>
+                <div class="star-info-row">
+                  <strong>位置</strong>
+                  <span>${UI.escape(venue.address || '-')}</span>
+                </div>
+                <div class="star-info-row">
+                  <strong>备注</strong>
+                  <span>${UI.escape(venue.notes || '-')}</span>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="primary-btn" type="button" data-action="confirm-star-info">确认保存到库</button>
+                <button class="secondary-btn" type="button" data-action="clear-star-info">清空信息</button>
+              </div>
+            </div>
+          </section>
+        `;
       }
     };
 
@@ -2895,7 +3146,7 @@
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
-          <form id="channel-link-form" class="venue-form" data-venue-id="${venueId}" data-channel="${channel}">
+          <form id="channel-link-form" class="venue-form" data-owner="pick" data-venue-id="${venueId}" data-channel="${channel}">
             <p class="placeholder-text">请打开${UI.escape(channelNames[channel] || '对应 App')}，搜索：${UI.escape(query)}，再把链接粘贴回来。</p>
             <label class="field">
               链接
