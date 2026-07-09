@@ -1263,7 +1263,9 @@
 
     .my-month {
       display: grid;
-      gap: 2px;
+      grid-template-columns: 1fr auto;
+      gap: var(--space-2);
+      align-items: end;
       margin-top: var(--space-2);
       color: #111111;
     }
@@ -1276,6 +1278,23 @@
     .my-month span {
       font-size: 11px;
       line-height: 1.2;
+    }
+
+    .my-month-controls {
+      display: grid;
+      grid-template-columns: 76px 64px;
+      gap: var(--space-2);
+    }
+
+    .my-month-controls select {
+      min-height: 30px;
+      border: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      color: #111111;
+      padding: 4px 6px;
+      font-size: 11px;
+      font-weight: 800;
     }
 
     .my-calendar-card {
@@ -1335,6 +1354,10 @@
       background: #FFFFFF;
       color: #111111;
       box-shadow: inset 0 0 0 1px #111111;
+    }
+
+    .calendar-upload-input {
+      display: none;
     }
 
     .recent-board {
@@ -1465,6 +1488,13 @@
       min-height: 132px;
       margin-top: 2px;
       padding: 0 28px 0 0;
+      touch-action: pan-y;
+      user-select: none;
+      cursor: grab;
+    }
+
+    .record-book.is-dragging {
+      cursor: grabbing;
     }
 
     .record-card {
@@ -1479,6 +1509,11 @@
       padding: var(--space-3);
       box-shadow: 8px 0 0 #F2C5DD, 14px 0 0 #BFE4D6, 20px 0 0 #F1D89F;
       overflow: hidden;
+      transition: transform 0.18s ease;
+    }
+
+    .record-book.is-dragging .record-card {
+      transition: none;
     }
 
     .record-card h3 {
@@ -1505,13 +1540,6 @@
       color: #555555;
       font-size: 10px;
       font-weight: 800;
-    }
-
-    .record-nav {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: var(--space-2);
-      margin-top: var(--space-3);
     }
 
     .record-note {
@@ -3455,12 +3483,33 @@
     const HistoryManager = {
       activeRecordIndex: 0,
       activeDate: '',
+      pendingPhotoRecordId: '',
+      pendingPhotoDate: '',
+      calendarLongPress: {
+        timer: null,
+        date: '',
+        moved: false,
+        startX: 0,
+        startY: 0,
+        triggered: false
+      },
+      bookDrag: {
+        active: false,
+        startX: 0,
+        lastX: 0,
+        moved: false,
+        card: null
+      },
 
       init() {
         const myTab = document.getElementById('tab-my');
         myTab.addEventListener('click', (event) => this.handleClick(event));
         myTab.addEventListener('input', (event) => this.handleInput(event));
         myTab.addEventListener('change', (event) => this.handleChange(event));
+        myTab.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
+        myTab.addEventListener('pointermove', (event) => this.handlePointerMove(event));
+        myTab.addEventListener('pointerup', () => this.handlePointerUp());
+        myTab.addEventListener('pointercancel', () => this.handlePointerCancel());
       },
 
       render() {
@@ -3524,8 +3573,21 @@
         return `
           <section>
             <div class="my-month">
-              <strong>${month + 1}月</strong>
-              <span>${year}年${month + 1}月${Number(activeDate.slice(8, 10))}日</span>
+              <div>
+                <strong>${month + 1}月</strong>
+                <span>${year}年${month + 1}月${Number(activeDate.slice(8, 10))}日</span>
+              </div>
+              <div class="my-month-controls" aria-label="My 年月选择">
+                <select data-history-date-part="year" aria-label="选择年份">
+                  ${this.getYearOptions(year).map((item) => `<option value="${item}" ${item === year ? 'selected' : ''}>${item}年</option>`).join('')}
+                </select>
+                <select data-history-date-part="month" aria-label="选择月份">
+                  ${Array.from({ length: 12 }, (_, index) => {
+                    const item = index + 1;
+                    return `<option value="${item}" ${index === month ? 'selected' : ''}>${item}月</option>`;
+                  }).join('')}
+                </select>
+              </div>
             </div>
             <div class="my-calendar-card">
               <div class="calendar-grid">
@@ -3533,6 +3595,7 @@
                 ${blanks.join('')}
                 ${days.join('')}
               </div>
+              <input id="calendar-upload-input" class="calendar-upload-input" type="file" accept="image/*" multiple data-history-photo="calendar-upload">
             </div>
           </section>
         `;
@@ -3612,10 +3675,6 @@
               </div>
               <span class="record-page-count">${this.activeRecordIndex + 1}/${history.length}</span>
             </article>
-            <div class="record-nav">
-              <button class="secondary-btn" type="button" data-history-action="prev-record" ${this.activeRecordIndex <= 0 ? 'disabled' : ''}>上一页</button>
-              <button class="secondary-btn" type="button" data-history-action="next-record" ${this.activeRecordIndex >= history.length - 1 ? 'disabled' : ''}>下一页</button>
-            </div>
           </section>
         `;
       },
@@ -3636,6 +3695,10 @@
         if (!trigger) return;
         const action = trigger.dataset.historyAction;
         if (action === 'select-record') {
+          if (this.calendarLongPress.triggered && trigger.dataset.date === this.calendarLongPress.date) {
+            this.calendarLongPress.triggered = false;
+            return;
+          }
           this.selectRecord(trigger.dataset.index, trigger.dataset.date);
           return;
         }
@@ -3651,19 +3714,6 @@
           this.removeActiveRecord();
           return;
         }
-        if (action === 'prev-record') {
-          this.activeRecordIndex = Math.max(0, this.activeRecordIndex - 1);
-          this.activeDate = this.getSortedHistory()[this.activeRecordIndex]?.date || this.activeDate;
-          this.render();
-          return;
-        }
-        if (action === 'next-record') {
-          const history = this.getSortedHistory();
-          this.activeRecordIndex = Math.min(history.length - 1, this.activeRecordIndex + 1);
-          this.activeDate = history[this.activeRecordIndex]?.date || this.activeDate;
-          this.render();
-          return;
-        }
         if (action === 'remove-photo') {
           this.removePhoto(trigger.dataset.id, Number(trigger.dataset.index));
         }
@@ -3675,10 +3725,46 @@
       },
 
       handleChange(event) {
+        const datePart = event.target.dataset.historyDatePart;
+        if (datePart) {
+          this.setDatePart(datePart, event.target.value);
+          return;
+        }
         const photoInput = event.target.dataset.historyPhoto;
         if (!photoInput) return;
-        this.handlePhotoUpload(event.target.dataset.id, Array.from(event.target.files || []));
+        const files = Array.from(event.target.files || []);
+        if (photoInput === 'calendar-upload') {
+          this.handleCalendarPhotoUpload(files);
+        } else {
+          this.handlePhotoUpload(event.target.dataset.id, files);
+        }
         event.target.value = '';
+      },
+
+      handlePointerDown(event) {
+        const calendarDay = event.target.closest('.calendar-day:not(.is-empty)');
+        if (calendarDay) {
+          this.startCalendarLongPress(event, calendarDay);
+        }
+        const recordBook = event.target.closest('.record-book');
+        if (recordBook && !event.target.closest('textarea, input, button, label')) {
+          this.startBookDrag(event, recordBook);
+        }
+      },
+
+      handlePointerMove(event) {
+        this.moveCalendarLongPress(event);
+        this.moveBookDrag(event);
+      },
+
+      handlePointerUp() {
+        this.endCalendarLongPress();
+        this.endBookDrag();
+      },
+
+      handlePointerCancel() {
+        this.cancelCalendarLongPress();
+        this.cancelBookDrag();
       },
 
       selectRecord(indexValue, dateValue) {
@@ -3691,14 +3777,99 @@
         if (dateValue) this.createRecordForDate(dateValue);
       },
 
-      createRecordForDate(date) {
-        const history = Storage.loadHistory();
-        const existingIndex = this.getSortedHistory().findIndex((record) => record.date === date);
+      setDatePart(part, value) {
+        const selected = this.parseDateValue(this.activeDate || this.formatDateValue(new Date()));
+        const year = part === 'year' ? Number(value) : selected.getFullYear();
+        const month = part === 'month' ? Number(value) - 1 : selected.getMonth();
+        const maxDay = new Date(year, month + 1, 0).getDate();
+        const day = Math.min(selected.getDate(), maxDay);
+        this.activeDate = this.formatDateValue(new Date(year, month, day));
+        const history = this.getSortedHistory();
+        const recordIndex = history.findIndex((record) => record.date === this.activeDate);
+        if (recordIndex >= 0) this.activeRecordIndex = recordIndex;
+        this.render();
+      },
+
+      getYearOptions(selectedYear) {
+        const thisYear = new Date().getFullYear();
+        const years = new Set([selectedYear]);
+        for (let year = thisYear - 1; year <= thisYear + 2; year += 1) years.add(year);
+        return [...years].sort((left, right) => left - right);
+      },
+
+      parseDateValue(value) {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return new Date();
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        return Number.isNaN(date.getTime()) ? new Date() : date;
+      },
+
+      startCalendarLongPress(event, dayButton) {
+        this.cancelCalendarLongPress();
+        const date = dayButton.dataset.date || '';
+        this.calendarLongPress = {
+          timer: window.setTimeout(() => {
+            this.calendarLongPress.triggered = true;
+          }, 560),
+          date,
+          moved: false,
+          startX: event.clientX,
+          startY: event.clientY,
+          triggered: false
+        };
+      },
+
+      moveCalendarLongPress(event) {
+        if (!this.calendarLongPress.timer) return;
+        const movedX = Math.abs(event.clientX - this.calendarLongPress.startX);
+        const movedY = Math.abs(event.clientY - this.calendarLongPress.startY);
+        if (movedX > 10 || movedY > 10) this.cancelCalendarLongPress();
+      },
+
+      endCalendarLongPress() {
+        const shouldUpload = this.calendarLongPress.triggered && this.calendarLongPress.date;
+        if (this.calendarLongPress.timer) {
+          window.clearTimeout(this.calendarLongPress.timer);
+          this.calendarLongPress.timer = null;
+        }
+        if (shouldUpload) this.prepareCalendarUpload(this.calendarLongPress.date);
+      },
+
+      cancelCalendarLongPress() {
+        if (this.calendarLongPress.timer) window.clearTimeout(this.calendarLongPress.timer);
+        this.calendarLongPress.timer = null;
+      },
+
+      prepareCalendarUpload(date) {
+        this.activeDate = date;
+        this.pendingPhotoDate = date;
+        const existingRecord = this.getSortedHistory().find((record) => record.date === date);
+        this.pendingPhotoRecordId = existingRecord?.id || '';
+        const input = document.getElementById('calendar-upload-input');
+        input?.click();
+      },
+
+      handleCalendarPhotoUpload(files) {
+        const recordId = this.pendingPhotoRecordId;
+        const date = this.pendingPhotoDate;
+        this.pendingPhotoRecordId = '';
+        this.pendingPhotoDate = '';
+        if (!files.length || !date) return;
+        const record = recordId
+          ? this.getSortedHistory().find((item) => item.id === recordId)
+          : this.ensureRecordForDate(date, false);
+        if (!record) return;
+        this.handlePhotoUpload(record.id, files);
+      },
+
+      ensureRecordForDate(date, shouldRender = true) {
+        const sortedHistory = this.getSortedHistory();
+        const existingIndex = sortedHistory.findIndex((record) => record.date === date);
         if (existingIndex >= 0) {
           this.activeRecordIndex = existingIndex;
           this.activeDate = date;
-          this.render();
-          return;
+          if (shouldRender) this.render();
+          return sortedHistory[existingIndex];
         }
         const record = {
           id: StarManager.createId('cr'),
@@ -3711,11 +3882,75 @@
           notes: '',
           photos: []
         };
-        if (!Storage.saveHistory([record, ...history])) return;
-        this.activeRecordIndex = 0;
+        const history = Storage.loadHistory();
+        if (!Storage.saveHistory([record, ...history])) return null;
+        this.activeRecordIndex = this.getSortedHistory().findIndex((item) => item.id === record.id);
+        if (this.activeRecordIndex < 0) this.activeRecordIndex = 0;
         this.activeDate = date;
-        UI.showStatus('已创建当天记录，可以上传照片或写备注。', 'success');
+        if (shouldRender) this.render();
+        return record;
+      },
+
+      startBookDrag(event, recordBook) {
+        const card = recordBook.querySelector('.record-card');
+        this.bookDrag = {
+          active: true,
+          startX: event.clientX,
+          lastX: event.clientX,
+          moved: false,
+          card
+        };
+        recordBook.classList.add('is-dragging');
+        recordBook.setPointerCapture?.(event.pointerId);
+      },
+
+      moveBookDrag(event) {
+        if (!this.bookDrag.active) return;
+        const deltaX = event.clientX - this.bookDrag.startX;
+        this.bookDrag.lastX = event.clientX;
+        if (Math.abs(deltaX) > 18) this.bookDrag.moved = true;
+        if (this.bookDrag.card) {
+          const clampedDelta = Math.max(-96, Math.min(96, deltaX));
+          this.bookDrag.card.style.transform = `translateX(${clampedDelta}px)`;
+        }
+      },
+
+      endBookDrag() {
+        const recordBook = document.querySelector('.record-book');
+        if (recordBook) recordBook.classList.remove('is-dragging');
+        if (!this.bookDrag.active) return;
+        const deltaX = this.bookDrag.lastX - this.bookDrag.startX;
+        if (this.bookDrag.card) this.bookDrag.card.style.transform = 'translateX(0)';
+        if (this.bookDrag.moved && Math.abs(deltaX) > 52) {
+          this.changeRecord(deltaX < 0 ? 1 : -1);
+        }
+        this.bookDrag.active = false;
+      },
+
+      cancelBookDrag() {
+        const recordBook = document.querySelector('.record-book');
+        if (recordBook) recordBook.classList.remove('is-dragging');
+        if (this.bookDrag.card) this.bookDrag.card.style.transform = 'translateX(0)';
+        this.bookDrag.active = false;
+      },
+
+      changeRecord(direction) {
+        const history = this.getSortedHistory();
+        if (!history.length) return;
+        const nextIndex = Math.max(0, Math.min(history.length - 1, this.activeRecordIndex + direction));
+        if (nextIndex === this.activeRecordIndex) return;
+        this.activeRecordIndex = nextIndex;
+        this.activeDate = history[nextIndex]?.date || this.activeDate;
         this.render();
+      },
+
+      createRecordForDate(date) {
+        const beforeCount = Storage.loadHistory().length;
+        const record = this.ensureRecordForDate(date);
+        if (!record) return;
+        if (Storage.loadHistory().length > beforeCount) {
+          UI.showStatus('已创建当天记录，可以上传照片或写备注。', 'success');
+        }
       },
 
       saveRecordPatch(recordId, patch, shouldRender = true) {
