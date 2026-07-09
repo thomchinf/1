@@ -610,6 +610,28 @@
       scroll-snap-type: none;
     }
 
+    .date-picker {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .date-month-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2);
+    }
+
+    .date-month-controls select {
+      min-height: 34px;
+      border: 1px solid #111111;
+      border-radius: 0;
+      background: transparent;
+      color: #111111;
+      padding: 5px 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .date-strip::-webkit-scrollbar {
       display: none;
     }
@@ -742,7 +764,7 @@
     .selected-item,
     .star-picker-item {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto;
       align-items: center;
       gap: 6px;
       border: 1px solid #111111;
@@ -1113,6 +1135,24 @@
       top: 32%;
     }
 
+    .map-pin.is-venue {
+      left: var(--x);
+      top: var(--y);
+      right: auto;
+      border-color: #6B7280;
+      background: #FFFFFF;
+      transform: translate(-50%, -50%) rotate(-45deg);
+    }
+
+    .map-pin.is-venue.is-selected {
+      width: 24px;
+      height: 24px;
+      border-color: #111111;
+      background: var(--color-primary);
+      box-shadow: 0 0 0 6px rgba(45, 205, 155, 0.22);
+      z-index: 3;
+    }
+
     .map-label {
       position: absolute;
       left: var(--x);
@@ -1124,6 +1164,13 @@
       font-size: 11px;
       font-weight: 800;
       transform: translate(-50%, -50%);
+    }
+
+    .map-label.is-selected {
+      border-color: var(--color-primary-dark);
+      background: #ECFDF5;
+      color: #0F513F;
+      z-index: 4;
     }
 
     .filter-summary {
@@ -1865,7 +1912,16 @@
 
       bindNavigation() {
         document.querySelectorAll('.tab-btn').forEach((button) => {
-          button.addEventListener('click', () => this.switchTab(button.dataset.tab));
+          button.addEventListener('click', () => {
+            if (button.dataset.tab === 'pick') {
+              PickManager.viewStep = 1;
+              const currentPick = Storage.loadCurrentPick();
+              if (currentPick.currentStep !== 1) {
+                Storage.saveCurrentPick({ ...currentPick, currentStep: 1 });
+              }
+            }
+            this.switchTab(button.dataset.tab);
+          });
         });
       },
 
@@ -2320,7 +2376,8 @@
           }
           UI.closeModal();
           if (form.dataset.completeTarget === 'pick') {
-            PickManager.openStep2ForVenue(id);
+            PickManager.goStep1({ selectedVenueIds: [...new Set([...Storage.loadCurrentPick().selectedVenueIds, id])] });
+            UI.showStatus('新地点已加入 Pick 候选列表。', 'success');
             return;
           }
           if (form.dataset.completeTarget === 'star') {
@@ -2654,7 +2711,7 @@
         const allConditions = [...DEFAULT_FILTERS, ...currentPick.customConditions];
         const canGoStep2 = selectedVenues.length >= 2;
         document.getElementById('tab-pick').innerHTML = `
-          ${UI.renderHeader({ id: 'pick-title', text: 'pick' }, '', `<button class="pick-arrow-btn" type="button" data-pick-action="go-step-2" aria-label="下一步" ${canGoStep2 ? '' : 'disabled'}>→</button>`)}
+          ${UI.renderHeader({ id: 'pick-title', text: 'pick' })}
           <section class="panel pick-board">
             <div class="pick-step">
               <div class="pick-topbar">
@@ -2690,7 +2747,6 @@
                 </section>
               </div>
               <div class="step-footer">
-                <button class="primary-btn" type="button" data-pick-action="go-step-2" ${canGoStep2 ? '' : 'disabled'}>下一步</button>
                 <p class="helper-text">${canGoStep2 ? '可以进入复制信息步骤。' : '至少选择 2 个场地后才能进入下一步。'}</p>
               </div>
             </div>
@@ -2735,7 +2791,7 @@
               <div class="channel-orbit">
                 ${this.renderChannelCard('xiaohongshu', '小红书', '环境', venue.name, actionAttribute)}
                 ${this.renderChannelCard('meituan', '美团', '价格', venue.name, actionAttribute)}
-                ${this.renderChannelCard('dianping', '大众点评', '距离', venue.name, actionAttribute)}
+                ${this.renderChannelCard('amap', '高德', '位置', venue.name, actionAttribute)}
               </div>
               ${this.renderVenueCarousel(venues, activeIndex)}
               <p class="helper-text">按住杯子左右拖动切换地点；点击渠道圆点粘贴链接。</p>
@@ -2791,16 +2847,28 @@
       },
 
       renderMapPlaceholder(scoredVenues, currentPick) {
-        const firstVenue = scoredVenues[0]?.venue;
-        const secondVenue = scoredVenues[1]?.venue;
+        const positions = [
+          { x: 70, y: 34 },
+          { x: 52, y: 58 },
+          { x: 78, y: 62 },
+          { x: 40, y: 34 },
+          { x: 62, y: 76 }
+        ];
+        const confirmedVenueIds = currentPick.confirmedVenueIds || [];
         return `
           <div class="map-placeholder" aria-label="静态地图占位">
             <div class="map-route"></div>
             <span class="map-pin is-origin"></span>
-            <span class="map-pin is-destination"></span>
             <div class="map-label" style="--x: 22%; --y: 68%;">${UI.escape(currentPick.userLocation || '出发点')}</div>
-            ${firstVenue ? `<div class="map-label" style="--x: 70%; --y: 34%;">${UI.escape(firstVenue.name)}</div>` : ''}
-            ${secondVenue ? `<div class="map-label" style="--x: 52%; --y: 58%;">${UI.escape(secondVenue.name)}</div>` : ''}
+            ${scoredVenues.map((item, index) => {
+              const venue = item.venue;
+              const position = positions[index % positions.length];
+              const selected = confirmedVenueIds.includes(venue.id);
+              return `
+                <span class="map-pin is-venue${selected ? ' is-selected' : ''}" style="--x: ${position.x}%; --y: ${position.y}%;"></span>
+                <div class="map-label${selected ? ' is-selected' : ''}" style="--x: ${position.x}%; --y: ${position.y - 10}%;">${UI.escape(venue.name)}</div>
+              `;
+            }).join('')}
           </div>
         `;
       },
@@ -2880,27 +2948,61 @@
       renderDateStrip(currentPick) {
         const today = new Date();
         const todayValue = this.formatDateValue(today);
-        const days = Array.from({ length: 21 }, (_, index) => {
-            const date = new Date(today);
-            date.setDate(today.getDate() + index);
+        const selectedDate = this.parseDateValue(currentPick.date);
+        const selectedYear = selectedDate.getFullYear();
+        const selectedMonth = selectedDate.getMonth();
+        const dayCount = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+        const years = this.getYearOptions(selectedYear);
+        const days = Array.from({ length: dayCount }, (_, index) => {
+            const date = new Date(selectedYear, selectedMonth, index + 1);
             return date;
           });
         return `
-          <div class="date-strip" aria-label="日期选择">
-            ${days.map((date) => {
-              const value = this.formatDateValue(date);
-              const weekday = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
-              const isActive = value === currentPick.date;
-              const isToday = value === todayValue;
-              return `
-                <button class="date-item${isActive ? ' is-active' : ''}${isToday ? ' is-today' : ''}" type="button" data-pick-action="set-date" data-date="${value}">
-                  <strong>${date.getDate()}</strong>
-                  <span>${weekday}</span>
-                </button>
-              `;
-            }).join('')}
+          <div class="date-picker">
+            <div class="date-month-controls" aria-label="年月选择">
+              <select data-date-part="year" aria-label="选择年份">
+                ${years.map((year) => `<option value="${year}" ${year === selectedYear ? 'selected' : ''}>${year}年</option>`).join('')}
+              </select>
+              <select data-date-part="month" aria-label="选择月份">
+                ${Array.from({ length: 12 }, (_, index) => {
+                  const month = index + 1;
+                  return `<option value="${month}" ${index === selectedMonth ? 'selected' : ''}>${month}月</option>`;
+                }).join('')}
+              </select>
+            </div>
+            <div class="date-strip" aria-label="日期选择">
+              ${days.map((date) => {
+                const value = this.formatDateValue(date);
+                const weekday = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
+                const isActive = value === currentPick.date;
+                const isToday = value === todayValue;
+                return `
+                  <button class="date-item${isActive ? ' is-active' : ''}${isToday ? ' is-today' : ''}" type="button" data-pick-action="set-date" data-date="${value}">
+                    <strong>${date.getDate()}</strong>
+                    <span>${weekday}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
           </div>
         `;
+      },
+
+      parseDateValue(value) {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return new Date();
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        const parsed = new Date(year, month, day);
+        return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+      },
+
+      getYearOptions(selectedYear) {
+        const thisYear = new Date().getFullYear();
+        const years = new Set([selectedYear]);
+        for (let year = thisYear - 1; year <= thisYear + 2; year += 1) years.add(year);
+        return [...years].sort((a, b) => a - b);
       },
 
       formatDateValue(date) {
@@ -2936,7 +3038,6 @@
                   <h3>${UI.escape(venue.name)}</h3>
                   <p>${UI.escape(venue.hours || '时间待补充')}</p>
                 </div>
-                <button class="mini-btn is-primary" type="button" data-pick-action="go-step-2" ${Storage.loadCurrentPick().selectedVenueIds.length >= 2 ? '' : 'disabled'}>进入</button>
                 <button class="mini-btn is-danger" type="button" data-pick-action="remove-venue" data-id="${venue.id}">×</button>
               </div>
             `).join('')}
@@ -2954,6 +3055,11 @@
         const field = event.target.dataset.pickField;
         if (field) {
           this.updateCurrentPick({ [field]: event.target.value });
+          return;
+        }
+        const datePart = event.target.dataset.datePart;
+        if (datePart) {
+          this.setDatePart(datePart, event.target.value);
           return;
         }
         const condition = event.target.dataset.condition;
@@ -2993,6 +3099,16 @@
 
       setDate(date) {
         this.updateCurrentPick({ date });
+      },
+
+      setDatePart(part, value) {
+        const currentPick = Storage.loadCurrentPick();
+        const selected = this.parseDateValue(currentPick.date);
+        const year = part === 'year' ? Number(value) : selected.getFullYear();
+        const month = part === 'month' ? Number(value) - 1 : selected.getMonth();
+        const maxDay = new Date(year, month + 1, 0).getDate();
+        const day = Math.min(selected.getDate(), maxDay);
+        this.updateCurrentPick({ date: this.formatDateValue(new Date(year, month, day)) });
       },
 
       handleDatePointerDown(event) {
@@ -3150,7 +3266,7 @@
             <p class="placeholder-text">请打开${UI.escape(channelNames[channel] || '对应 App')}，搜索：${UI.escape(query)}，再把链接粘贴回来。</p>
             <label class="field">
               链接
-              <input name="link" value="${UI.escape(copiedInfo[channel] || '')}" placeholder="粘贴 ${UI.escape(channelNames[channel] || '渠道')} 链接">
+              <textarea name="link" rows="5" placeholder="每行粘贴一个 ${UI.escape(channelNames[channel] || '渠道')} 链接">${UI.escape(copiedInfo[channel] || '')}</textarea>
             </label>
             <div class="form-actions">
               <button class="primary-btn" type="submit">保存链接</button>
