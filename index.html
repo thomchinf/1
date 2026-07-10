@@ -1962,6 +1962,7 @@
         PickManager.init();
         HistoryManager.init();
         this.bindNavigation();
+        this.handleShareTarget();
         this.render();
         this.registerServiceWorker();
       },
@@ -1996,6 +1997,42 @@
         StarManager.render();
         PickManager.render();
         HistoryManager.render();
+      },
+
+      handleShareTarget() {
+        const params = new URLSearchParams(window.location.search);
+        const title = params.get('title')?.trim() || '';
+        const text = params.get('text')?.trim() || '';
+        const explicitUrl = params.get('url')?.trim() || '';
+        const sharedText = [title, text, explicitUrl].filter(Boolean).join('\n');
+        const url = explicitUrl || sharedText.match(/https?:\/\/\S+/)?.[0] || '';
+        if (!title && !text && !url) return;
+
+        const extractedVenue = AIExtractor.applyToVenue({
+          id: StarManager.createId('v'),
+          name: title || AIExtractor.extractName(AIExtractor.normalizeText(sharedText).split(/\n+/).map((line) => line.trim()).filter(Boolean)),
+          address: '',
+          hours: '',
+          price: { amount: 0, unit: '日' },
+          tags: [],
+          customTags: [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes: text || url || '',
+          images: [],
+          channelLinks: url ? { share: url } : {},
+          visitCount: 0,
+          createdAt: new Date().toISOString().slice(0, 10),
+          sceneType: '其他',
+          source: 'share',
+          sourceUrl: url
+        }, sharedText);
+
+        StarManager.openStep12Draft(extractedVenue);
+        UI.showStatus('已接收分享内容，请确认后保存到 Star 库。', 'success');
+        try {
+          window.history.replaceState({}, document.title, window.location.href.split('?')[0]);
+        } catch (error) {}
       },
 
       registerServiceWorker() {
@@ -2562,18 +2599,18 @@
           <div class="modal-header">
             <div>
               <p class="eyebrow">${UI.escape(this.getChannelName(channel))}</p>
-              <h2 class="modal-title">粘贴链接</h2>
+              <h2 class="modal-title">粘贴信息</h2>
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
           <form id="channel-link-form" class="venue-form" data-owner="star" data-venue-id="${venue.id}" data-channel="${channel}">
-            <p class="placeholder-text">搜索：${UI.escape(query || venue.name)}，把${UI.escape(this.getChannelName(channel))}链接粘贴到这里。</p>
+            <p class="placeholder-text">可以保存链接；要自动提取字段，请粘贴页面复制出来的文字内容。</p>
             <label class="field">
-              链接
-              <input name="link" value="${UI.escape(venue.channelLinks?.[channel] || '')}" placeholder="粘贴 ${UI.escape(this.getChannelName(channel))} 链接">
+              链接/复制内容
+              <textarea name="link" rows="5" placeholder="粘贴 ${UI.escape(this.getChannelName(channel))} 链接或页面复制内容">${UI.escape(venue.channelLinks?.[channel] || '')}</textarea>
             </label>
             <div class="form-actions">
-              <button class="primary-btn" type="submit">保存链接</button>
+              <button class="primary-btn" type="submit">保存并提取</button>
               <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
             </div>
           </form>
@@ -2582,31 +2619,38 @@
 
       saveChannelLink(venueId, channel, link) {
         if (this.step12Draft && this.step12Draft.id === venueId) {
-          this.step12Draft = {
+          const baseDraft = {
             ...this.step12Draft,
             channelLinks: {
               ...(this.step12Draft.channelLinks || {}),
               [channel]: link
             }
           };
+          const nextDraft = AIExtractor.applyToVenue(baseDraft, link);
+          const changedFields = AIExtractor.getChangedFields(baseDraft, nextDraft);
+          this.step12Draft = {
+            ...nextDraft
+          };
           UI.closeModal();
-          UI.showStatus('链接已保存。', 'success');
+          UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
           this.renderStep12();
           return;
         }
         const venues = Storage.loadVenues();
         const venue = venues.find((item) => item.id === venueId);
         if (!venue) return;
-        const nextVenue = {
+        const baseVenue = {
           ...venue,
           channelLinks: {
             ...(venue.channelLinks || {}),
             [channel]: link
           }
         };
+        const nextVenue = AIExtractor.applyToVenue(baseVenue, link);
+        const changedFields = AIExtractor.getChangedFields(baseVenue, nextVenue);
         if (!Storage.saveVenues(venues.map((item) => (item.id === venueId ? nextVenue : item)))) return;
         UI.closeModal();
-        UI.showStatus('链接已保存。', 'success');
+        UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
         this.renderStep12();
       },
 
@@ -3326,18 +3370,18 @@
           <div class="modal-header">
             <div>
               <p class="eyebrow">${UI.escape(channelNames[channel] || '渠道')}</p>
-              <h2 class="modal-title">粘贴链接</h2>
+              <h2 class="modal-title">粘贴信息</h2>
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
           <form id="channel-link-form" class="venue-form" data-owner="pick" data-venue-id="${venueId}" data-channel="${channel}">
-            <p class="placeholder-text">请打开${UI.escape(channelNames[channel] || '对应 App')}，搜索：${UI.escape(query)}，再把链接粘贴回来。</p>
+            <p class="placeholder-text">可以保存链接；要自动提取字段，请粘贴页面复制出来的文字内容。</p>
             <label class="field">
-              链接
-              <textarea name="link" rows="5" placeholder="每行粘贴一个 ${UI.escape(channelNames[channel] || '渠道')} 链接">${UI.escape(copiedInfo[channel] || '')}</textarea>
+              链接/复制内容
+              <textarea name="link" rows="5" placeholder="每行粘贴一个 ${UI.escape(channelNames[channel] || '渠道')} 链接，或粘贴页面复制内容">${UI.escape(copiedInfo[channel] || '')}</textarea>
             </label>
             <div class="form-actions">
-              <button class="primary-btn" type="submit">保存链接</button>
+              <button class="primary-btn" type="submit">保存并提取</button>
               <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
             </div>
           </form>
@@ -3354,8 +3398,13 @@
           }
         };
         Storage.saveCurrentPick({ ...currentPick, copiedInfo });
+        const venues = Storage.loadVenues();
+        const venue = venues.find((item) => item.id === venueId);
+        const changedFields = venue
+          ? AIExtractor.saveExtractedVenue(venue, link, venues)
+          : [];
         UI.closeModal();
-        UI.showStatus('链接已保存。', 'success');
+        UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
       },
 
       toggleConfirmedVenue(venueId) {
@@ -3805,24 +3854,165 @@
 
     const AIExtractor = {
       extractVenue(rawText) {
-        const lines = rawText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-        const name = lines[0] || '未命名场地';
+        const text = this.normalizeText(rawText);
+        const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+        const name = this.extractName(lines);
         return {
           id: StarManager.createId('v'),
           name,
-          address: lines.find((line) => /区|路|街|号/.test(line)) || '',
-          hours: lines.find((line) => /\d{1,2}[:：]\d{2}/.test(line)) || '',
-          price: { amount: 0, unit: '日' },
-          tags: DEFAULT_FILTERS.filter((tag) => rawText.includes(tag)),
-          customTags: [],
-          menuInfo: '',
-          membershipInfo: '',
-          notes: rawText,
+          address: this.extractAddress(lines),
+          hours: this.extractHours(text, lines),
+          price: this.extractPrice(text),
+          tags: this.extractTags(text),
+          customTags: this.extractCustomTags(text),
+          menuInfo: this.extractMenuInfo(lines),
+          membershipInfo: this.extractMembershipInfo(lines),
+          notes: text,
           images: [],
           visitCount: 0,
           createdAt: new Date().toISOString().slice(0, 10),
-          sceneType: rawText.includes('咖啡') ? '咖啡馆' : '自习室'
+          sceneType: this.extractSceneType(text)
         };
+      },
+
+      applyToVenue(venue, rawText) {
+        const extracted = this.extractVenue(rawText);
+        const nextVenue = { ...venue };
+        const mergeText = (field) => {
+          if (extracted[field] && !nextVenue[field]) nextVenue[field] = extracted[field];
+        };
+        mergeText('address');
+        mergeText('hours');
+        mergeText('menuInfo');
+        mergeText('membershipInfo');
+        if (extracted.notes && !nextVenue.notes) nextVenue.notes = extracted.notes;
+        if (!Number(nextVenue.price?.amount) && Number(extracted.price?.amount)) {
+          nextVenue.price = extracted.price;
+        }
+        nextVenue.tags = [...new Set([...(nextVenue.tags || []), ...(extracted.tags || [])])];
+        nextVenue.customTags = [...new Set([...(nextVenue.customTags || []), ...(extracted.customTags || [])])];
+        if ((!nextVenue.sceneType || nextVenue.sceneType === '其他') && extracted.sceneType) {
+          nextVenue.sceneType = extracted.sceneType;
+        }
+        return nextVenue;
+      },
+
+      saveExtractedVenue(venue, rawText, venues = Storage.loadVenues()) {
+        const nextVenue = this.applyToVenue(venue, rawText);
+        const changedFields = this.getChangedFields(venue, nextVenue);
+        if (changedFields.length) {
+          Storage.saveVenues(venues.map((item) => (item.id === venue.id ? nextVenue : item)));
+        }
+        return changedFields;
+      },
+
+      getChangedFields(before, after) {
+        const fields = [
+          ['address', '位置'],
+          ['hours', '时间'],
+          ['price', '价格'],
+          ['tags', '标签'],
+          ['customTags', '自定义标签'],
+          ['menuInfo', '菜单'],
+          ['membershipInfo', '办卡'],
+          ['notes', '备注'],
+          ['sceneType', '场景']
+        ];
+        return fields
+          .filter(([field]) => JSON.stringify(before[field] || '') !== JSON.stringify(after[field] || ''))
+          .map(([, label]) => label);
+      },
+
+      getExtractionStatus(rawText, changedFields) {
+        if (changedFields.length) return `已保存并提取：${changedFields.join('、')}`;
+        return this.isLinkOnly(rawText)
+          ? '链接已保存。单独链接无法在本地提取字段，请粘贴页面复制文字。'
+          : '信息已保存，未识别到可填字段。';
+      },
+
+      isLinkOnly(rawText) {
+        const text = String(rawText || '').trim();
+        if (!text) return false;
+        const withoutUrls = text.replace(/https?:\/\/\S+/g, '').trim();
+        return !withoutUrls || withoutUrls.length < 8;
+      },
+
+      normalizeText(rawText) {
+        return String(rawText || '')
+          .replace(/\r/g, '\n')
+          .replace(/https?:\/\/\S+/g, '')
+          .replace(/[ \t]+/g, ' ')
+          .trim();
+      },
+
+      extractName(lines) {
+        const line = lines.find((item) => !/链接|地址|营业|时间|价格|电话|导航|收藏|团购/.test(item));
+        return line?.replace(/^[#【\[]|[】\]#]$/g, '').trim() || '未命名场地';
+      },
+
+      extractAddress(lines) {
+        const addressLine = lines.find((line) => /^(地址|位置|导航|门店地址)[:：\s]/.test(line))
+          || lines.find((line) => /(区|县|路|街|道|号|大学|广场|中心|商场)/.test(line));
+        if (!addressLine) return '';
+        return addressLine
+          .replace(/^(地址|位置|导航|门店地址)[:：\s]*/, '')
+          .replace(/(查看地图|导航|复制地址).*$/, '')
+          .trim();
+      },
+
+      extractHours(text, lines) {
+        const hourLine = lines.find((line) => /(营业|时间|开放|周一|周二|周三|周四|周五|周六|周日|\d{1,2}[:：]\d{2})/.test(line));
+        if (!hourLine) return '';
+        const range = hourLine.match(/(\d{1,2}[:：]\d{2})\s*[-~—至到]\s*(\d{1,2}[:：]\d{2})/);
+        if (range) return `${range[1].replace('：', ':')}-${range[2].replace('：', ':')}`;
+        const times = text.match(/\d{1,2}[:：]\d{2}/g);
+        return times?.length >= 2 ? `${times[0].replace('：', ':')}-${times[1].replace('：', ':')}` : hourLine.trim();
+      },
+
+      extractPrice(text) {
+        const priceMatch = text.match(/(?:日卡|单日|全天|人均|价格|￥|¥)?\s*(\d{1,4})\s*元\s*\/?\s*(日|天|时|小时|杯|次)?/);
+        if (!priceMatch) return { amount: 0, unit: '日' };
+        const unitMap = { 天: '日', 小时: '时' };
+        return {
+          amount: Number(priceMatch[1]) || 0,
+          unit: unitMap[priceMatch[2]] || priceMatch[2] || '日'
+        };
+      },
+
+      extractTags(text) {
+        const tags = DEFAULT_FILTERS.filter((tag) => text.includes(tag.replace(/^有/, '')) || text.includes(tag));
+        if (/插座|充电/.test(text)) tags.push('有插座');
+        if (/安静|自习|学习|办公/.test(text)) tags.push('安静');
+        if (/窗|采光|阳光/.test(text)) tags.push('靠窗');
+        if (/大桌|长桌|桌子大/.test(text)) tags.push('大桌子');
+        if (/咖啡|拿铁|美式/.test(text)) tags.push('有咖啡');
+        if (/22[:：]?00|23[:：]?00|24[:：]?00|通宵|深夜/.test(text)) tags.push('22点后营业');
+        return [...new Set(tags)];
+      },
+
+      extractCustomTags(text) {
+        const tags = [];
+        if (/椅子|座椅|沙发/.test(text)) tags.push('椅子舒服');
+        if (/停车|车位/.test(text)) tags.push('可停车');
+        if (/地铁|公交/.test(text)) tags.push('交通方便');
+        if (/包间|独立/.test(text)) tags.push('有独立空间');
+        return tags;
+      },
+
+      extractMenuInfo(lines) {
+        const menuLines = lines.filter((line) => /(美式|拿铁|咖啡|饮品|茶|轻食|甜品|餐|菜单|元\/杯)/.test(line));
+        return menuLines.slice(0, 4).join('；');
+      },
+
+      extractMembershipInfo(lines) {
+        const memberLines = lines.filter((line) => /(会员|办卡|月卡|周卡|日卡|次卡|充值|套餐)/.test(line));
+        return memberLines.slice(0, 4).join('；');
+      },
+
+      extractSceneType(text) {
+        if (/咖啡|拿铁|美式|饮品/.test(text)) return '咖啡馆';
+        if (/自习|学习|书房|工位|办公/.test(text)) return '自习室';
+        return '其他';
       }
     };
 
