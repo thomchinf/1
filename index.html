@@ -1378,12 +1378,33 @@
     }
 
     .calendar-day {
+      position: relative;
+      overflow: hidden;
       display: grid;
       place-items: center;
       border-color: #111111;
       border-radius: 4px;
       background: transparent;
       padding: 0;
+    }
+
+    .calendar-day img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .calendar-day span {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.72);
     }
 
     .calendar-day.is-empty {
@@ -1406,6 +1427,11 @@
       background: #FFFFFF;
       color: #111111;
       box-shadow: inset 0 0 0 1px #111111;
+    }
+
+    .calendar-day.has-photo {
+      border-color: var(--color-primary-dark);
+      background: #FFFFFF;
     }
 
     .calendar-upload-input {
@@ -4559,6 +4585,7 @@
       activeDate: '',
       pendingPhotoRecordId: '',
       pendingPhotoDate: '',
+      pendingPhotoTarget: 'record',
       calendarLongPress: {
         timer: null,
         date: '',
@@ -4584,6 +4611,7 @@
         myTab.addEventListener('pointermove', (event) => this.handlePointerMove(event));
         myTab.addEventListener('pointerup', () => this.handlePointerUp());
         myTab.addEventListener('pointercancel', () => this.handlePointerCancel());
+        document.getElementById('modal-container').addEventListener('click', (event) => this.handleModalClick(event));
       },
 
       render() {
@@ -4633,15 +4661,19 @@
           const value = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const recordIndex = dateRecordMap.get(value);
           const hasRecord = typeof recordIndex !== 'undefined';
+          const calendarPhoto = hasRecord ? history[recordIndex]?.calendarPhoto : '';
           return `
             <button
-              class="calendar-day${hasRecord ? ' has-record' : ''}${value === activeDate ? ' is-active' : ''}${value === todayValue ? ' is-today' : ''}"
+              class="calendar-day${hasRecord ? ' has-record' : ''}${calendarPhoto ? ' has-photo' : ''}${value === activeDate ? ' is-active' : ''}${value === todayValue ? ' is-today' : ''}"
               type="button"
               data-history-action="select-record"
               data-date="${value}"
               data-index="${hasRecord ? recordIndex : ''}"
               aria-label="${value}${hasRecord ? ' 有记录' : ''}"
-            >${day}</button>
+            >
+              ${calendarPhoto ? `<img src="${UI.escape(calendarPhoto)}" alt="">` : ''}
+              <span>${day}</span>
+            </button>
           `;
         });
         return `
@@ -4699,14 +4731,10 @@
 
       renderToolRow(record) {
         const disabledClass = record ? '' : ' is-disabled';
-        const disabledAttr = record ? '' : 'aria-disabled="true"';
         return `
           <section class="my-tool-row" aria-label="记录工具">
             <button class="my-tool-btn" type="button" data-history-action="create-record" aria-label="新增记录">⊕</button>
-            <label class="my-tool-btn${disabledClass}" ${disabledAttr} aria-label="上传照片">
-              ⌾
-              ${record ? `<input type="file" accept="image/*" multiple data-history-photo="upload" data-id="${record.id}">` : ''}
-            </label>
+            <button class="my-tool-btn" type="button" data-history-action="open-photo-source" data-id="${record?.id || ''}" aria-label="添加照片">⌾</button>
             <button class="my-tool-btn${disabledClass}" type="button" data-history-action="focus-note" ${record ? '' : 'disabled'} aria-label="编辑备注">♧</button>
             <button class="my-tool-btn${disabledClass}" type="button" data-history-action="remove-record" ${record ? '' : 'disabled'} aria-label="删除记录">♜</button>
             <button class="my-tool-btn${disabledClass}" type="button" data-history-action="remove-photo" data-id="${record?.id || ''}" data-index="${Math.max(0, (record?.photos || []).length - 1)}" ${(record?.photos || []).length ? '' : 'disabled'} aria-label="删除照片">⊖</button>
@@ -4780,6 +4808,10 @@
           this.createRecordForDate(this.activeDate || this.formatDateValue(new Date()));
           return;
         }
+        if (action === 'open-photo-source') {
+          this.prepareRecordUpload(trigger.dataset.id);
+          return;
+        }
         if (action === 'focus-note') {
           document.querySelector('.record-note')?.focus();
           return;
@@ -4790,6 +4822,15 @@
         }
         if (action === 'remove-photo') {
           this.removePhoto(trigger.dataset.id, Number(trigger.dataset.index));
+        }
+      },
+
+      handleModalClick(event) {
+        const trigger = event.target.closest('[data-history-action]');
+        if (!trigger) return;
+        const action = trigger.dataset.historyAction;
+        if (action === 'choose-photo-source') {
+          this.openPendingPhotoInput(trigger.dataset.source);
         }
       },
 
@@ -4919,21 +4960,69 @@
         this.pendingPhotoDate = date;
         const existingRecord = this.getSortedHistory().find((record) => record.date === date);
         this.pendingPhotoRecordId = existingRecord?.id || '';
+        this.pendingPhotoTarget = 'calendar';
+        this.openPhotoSourceModal(date);
+      },
+
+      prepareRecordUpload(recordId) {
+        const fallbackDate = this.activeDate || this.formatDateValue(new Date());
+        const record = recordId
+          ? this.getSortedHistory().find((item) => item.id === recordId)
+          : this.ensureRecordForDate(fallbackDate, false);
+        if (!record) return;
+        this.pendingPhotoRecordId = record.id;
+        this.pendingPhotoDate = record.date;
+        this.pendingPhotoTarget = 'record';
+        this.openPhotoSourceModal(record.date);
+      },
+
+      openPhotoSourceModal(date) {
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Photo</p>
+              <h2 class="modal-title">${UI.escape(date)} 添加照片</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <div class="modal-actions">
+            <button class="primary-btn" type="button" data-history-action="choose-photo-source" data-source="camera">拍照</button>
+            <button class="secondary-btn" type="button" data-history-action="choose-photo-source" data-source="gallery">从相册选择</button>
+          </div>
+        `);
+      },
+
+      openPendingPhotoInput(source) {
         const input = document.getElementById('calendar-upload-input');
-        input?.click();
+        if (!input) return;
+        if (source === 'camera') {
+          input.setAttribute('capture', 'environment');
+          input.multiple = false;
+        } else {
+          input.removeAttribute('capture');
+          input.multiple = true;
+        }
+        UI.closeModal();
+        window.setTimeout(() => input.click(), 0);
       },
 
       handleCalendarPhotoUpload(files) {
         const recordId = this.pendingPhotoRecordId;
         const date = this.pendingPhotoDate;
+        const target = this.pendingPhotoTarget;
         this.pendingPhotoRecordId = '';
         this.pendingPhotoDate = '';
+        this.pendingPhotoTarget = 'record';
         if (!files.length || !date) return;
         const record = recordId
           ? this.getSortedHistory().find((item) => item.id === recordId)
           : this.ensureRecordForDate(date, false);
         if (!record) return;
-        this.handlePhotoUpload(record.id, files);
+        if (target === 'calendar') {
+          this.handleCalendarDayPhoto(record.id, files);
+        } else {
+          this.handlePhotoUpload(record.id, files);
+        }
       },
 
       ensureRecordForDate(date, shouldRender = true) {
@@ -4954,6 +5043,7 @@
           chosenVenueId: '',
           filterConditions: [],
           notes: '',
+          calendarPhoto: '',
           photos: []
         };
         const history = Storage.loadHistory();
@@ -5054,6 +5144,26 @@
           });
           if (!Storage.saveHistory(nextHistory)) return;
           UI.showStatus('照片已保存。', 'success');
+          this.render();
+        } catch (error) {
+          UI.showStatus('图片处理失败，请换一张图片重试。');
+        }
+      },
+
+      async handleCalendarDayPhoto(recordId, files) {
+        const imageFile = files.find((file) => file.type.startsWith('image/'));
+        if (!imageFile) {
+          UI.showStatus('请选择图片文件。');
+          return;
+        }
+        try {
+          const calendarPhoto = await this.compressImage(imageFile);
+          const history = Storage.loadHistory();
+          const nextHistory = history.map((record) => (
+            record.id === recordId ? { ...record, calendarPhoto } : record
+          ));
+          if (!Storage.saveHistory(nextHistory)) return;
+          UI.showStatus('日期照片已保存。', 'success');
           this.render();
         } catch (error) {
           UI.showStatus('图片处理失败，请换一张图片重试。');
