@@ -1092,6 +1092,29 @@
       color: var(--color-muted);
     }
 
+    .source-info-panel {
+      display: grid;
+      gap: var(--space-2);
+      border: 1px solid var(--color-line);
+      border-radius: 8px;
+      background: #FFFFFF;
+      padding: var(--space-3);
+    }
+
+    .source-info-panel .placeholder-text {
+      margin: 0;
+      font-size: 12px;
+    }
+
+    .source-link {
+      overflow: hidden;
+      color: var(--color-primary-dark);
+      font-size: 12px;
+      line-height: 1.4;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .step3-shell {
       display: grid;
       gap: var(--space-4);
@@ -2719,6 +2742,50 @@
         return this.step12Draft || Storage.loadVenues().find((item) => item.id === this.activeVenueId);
       },
 
+      getSourceLinks(venue) {
+        return [
+          venue.sourceUrl,
+          ...Object.values(venue.channelLinks || {})
+        ]
+          .flatMap((value) => String(value || '').match(/https?:\/\/\S+/g) || [])
+          .filter(Boolean);
+      },
+
+      getExtractedLabels(venue) {
+        return [
+          ['address', '位置'],
+          ['hours', '时间'],
+          ['price', '价格'],
+          ['tags', '标签'],
+          ['customTags', '自定义标签'],
+          ['menuInfo', '菜单'],
+          ['membershipInfo', '办卡'],
+          ['notes', '备注']
+        ]
+          .filter(([field]) => {
+            const value = venue[field];
+            if (field === 'price') return Number(value?.amount) > 0;
+            return Array.isArray(value) ? value.length : Boolean(value);
+          })
+          .map(([, label]) => label);
+      },
+
+      renderSourceInfo(venue) {
+        const links = [...new Set(this.getSourceLinks(venue))];
+        const labels = this.getExtractedLabels(venue);
+        return `
+          <div class="source-info-panel" aria-label="来源与提取状态">
+            <div class="star-info-row">
+              <strong>来源</strong>
+              <span>${links.length ? `${links.length} 个链接已保存` : '暂无来源链接'}</span>
+            </div>
+            ${links[0] ? `<div class="source-link">${UI.escape(links[0])}</div>` : ''}
+            <p class="placeholder-text">${labels.length ? `本地已提取：${UI.escape(labels.join('、'))}` : '还没有提取到字段，可以继续粘贴页面文字。'}</p>
+            <p class="placeholder-text">${BackendClient.isConfigured() ? '后端 API 已配置，将优先尝试自动提取。' : '链接内容等待后端 API 提取；当前仅保存链接并使用本地文字规则。'}</p>
+          </div>
+        `;
+      },
+
       renderStep12() {
         const venue = this.getStep12Venue();
         if (!venue) {
@@ -2757,6 +2824,7 @@
                   <span>${UI.escape(venue.notes || '-')}</span>
                 </div>
               </div>
+              ${this.renderSourceInfo(venue)}
               <div class="form-actions">
                 <button class="primary-btn" type="button" data-action="confirm-star-info">确认保存到库</button>
                 <button class="secondary-btn" type="button" data-action="clear-star-info">清空信息</button>
