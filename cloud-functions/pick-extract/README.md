@@ -26,6 +26,8 @@ JUSTONE_NOTE_URL=https://api.justoneapi.com/api/xiaohongshu/get-note-detail/v1
 DEEPSEEK_API_KEY
 DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
 DEEPSEEK_MODEL=deepseek-chat
+AMAP_KEY
+AMAP_GEOCODE_URL=https://restapi.amap.com/v3/geocode/geo
 ```
 
 ## Function URL
@@ -45,3 +47,23 @@ Recommended Tencent Function URL settings:
 - CORS origin should include the local preview origin, for example `http://127.0.0.1:4187`
 
 The frontend intentionally sends POST without a `Content-Type` header to avoid Function URL preflight issues during local development.
+
+## Geocode Test
+
+Paste this in the browser console. Keep it headerless, matching the frontend request style.
+
+```js
+fetch('https://1452700938-gzyqz1yprr.ap-guangzhou.tencentscf.com', {
+  method: 'POST',
+  body: JSON.stringify({
+    type: 'geocode',
+    address: '天津红桥区光荣道29号'
+  })
+})
+  .then((response) => response.json())
+  .then((result) => {
+    console.log('geocode result:', JSON.stringify(result, null, 2));
+    console.log('place:', result.data?.place);
+    console.log('debug:', result.data?.debug);
+  });
+```

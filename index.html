@@ -1165,9 +1165,10 @@
     }
 
     .map-pin.is-origin {
-      left: 16%;
-      top: 58%;
+      left: var(--x, 16%);
+      top: var(--y, 58%);
       background: #FFFFFF;
+      transform: translate(-50%, -50%) rotate(-45deg);
     }
 
     .map-pin.is-destination {
@@ -1869,6 +1870,7 @@
       date: '2026-07-07',
       time: '14:00',
       userLocation: '',
+      originPlace: null,
       weather: null,
       selectedVenueIds: [],
       filterConditions: ['有插座', '安静'],
@@ -1946,6 +1948,10 @@
           }
           if (typeof nextVenue.channelLinks === 'undefined') {
             nextVenue.channelLinks = defaultVenue?.channelLinks || {};
+            changed = true;
+          }
+          if (typeof nextVenue.geoPlace === 'undefined' && defaultVenue?.geoPlace) {
+            nextVenue.geoPlace = defaultVenue.geoPlace;
             changed = true;
           }
           return nextVenue;
@@ -2470,6 +2476,7 @@
           notes: readField('notes', existingVenue?.notes || ''),
           images: existingVenue ? existingVenue.images : [],
           channelLinks: existingVenue ? (existingVenue.channelLinks || {}) : {},
+          geoPlace: existingVenue?.geoPlace || null,
           visitCount: existingVenue ? existingVenue.visitCount : 0,
           createdAt: existingVenue ? existingVenue.createdAt : new Date().toISOString().slice(0, 10),
           sceneType: formData.get('sceneType') || existingVenue?.sceneType || '自习室'
@@ -3426,7 +3433,8 @@
         Storage.saveCurrentPick({
           ...currentPick,
           ...patch,
-          weather: patch.userLocation !== undefined ? null : currentPick.weather
+          weather: patch.userLocation !== undefined ? null : currentPick.weather,
+          originPlace: patch.userLocation !== undefined ? null : (patch.originPlace ?? currentPick.originPlace)
         });
         if (shouldRender) this.render();
       },
@@ -3708,12 +3716,12 @@
         if (this.pendingKey === key || this.hasResolvedWeather(currentPick.weather, key)) return;
         this.pendingKey = key;
         try {
-          const place = await GeoService.geocode(currentPick.userLocation);
+          const place = await this.getUsablePlace(currentPick);
           if (!place) throw new Error('place not found');
           const weather = await this.fetchForecast(place, currentPick, key);
           const latestPick = Storage.loadCurrentPick();
           if (latestPick.userLocation !== currentPick.userLocation || latestPick.date !== currentPick.date) return;
-          Storage.saveCurrentPick({ ...latestPick, weather });
+          Storage.saveCurrentPick({ ...latestPick, originPlace: place, weather });
           this.updateWeatherText(weather.text);
         } catch (error) {
           const fallback = {
@@ -3729,6 +3737,27 @@
         } finally {
           this.pendingKey = '';
         }
+      },
+
+      async getUsablePlace(currentPick) {
+        const savedPlace = this.normalizePlace(currentPick.originPlace);
+        if (savedPlace) return savedPlace;
+        const resolvedPlace = await GeoService.geocode(currentPick.userLocation);
+        return this.normalizePlace(resolvedPlace);
+      },
+
+      normalizePlace(place) {
+        if (!place) return null;
+        const latitude = Number(place.latitude ?? place.lat);
+        const longitude = Number(place.longitude ?? place.lon);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        return {
+          ...place,
+          latitude,
+          longitude,
+          lat: latitude,
+          lon: longitude
+        };
       },
 
       async fetchForecast(place, currentPick, key) {
@@ -3783,16 +3812,35 @@
       async geocode(query) {
         const key = String(query || '').trim().toLowerCase();
         if (!key) return null;
-        if (Object.prototype.hasOwnProperty.call(this.cache, key)) return this.cache[key];
+        if (Object.prototype.hasOwnProperty.call(this.cache, key)) {
+          this.saveOriginPlace(query, this.cache[key]);
+          return this.cache[key];
+        }
         let point = null;
         try {
-          point = await this.geocodeAddress(query);
+          point = await BackendClient.geocode(query);
         } catch (error) {
           point = null;
         }
+        try {
+          if (!point) point = await this.geocodeAddress(query);
+        } catch (error) {
+          if (!point) point = null;
+        }
         if (!point) point = await this.geocodeCityCandidates(query);
         this.cache[key] = point;
+        this.saveOriginPlace(query, point);
         return point;
+      },
+
+      saveOriginPlace(query, point) {
+        if (!point) return;
+        const currentPick = Storage.loadCurrentPick();
+        if (String(currentPick.userLocation || '').trim().toLowerCase() !== String(query || '').trim().toLowerCase()) return;
+        Storage.saveCurrentPick({
+          ...currentPick,
+          originPlace: point
+        });
       },
 
       async geocodeAddress(query) {
@@ -3907,15 +3955,122 @@
       async resolveMapItems(scoredVenues, currentPick) {
         const items = [];
         const originQuery = currentPick.userLocation ? `${currentPick.userLocation}` : '';
-        const origin = originQuery ? await GeoService.geocode(originQuery) : null;
+        const origin = this.normalizePoint(currentPick.originPlace) || this.normalizePoint(originQuery ? await GeoService.geocode(originQuery) : null);
         if (origin) items.push({ ...origin, type: 'origin', id: 'origin', name: currentPick.userLocation || origin.name || '出发点' });
         for (const item of scoredVenues) {
           const venue = item.venue;
-          const query = [venue.address, venue.name].filter(Boolean).join(' ');
-          const point = query ? await GeoService.geocode(query) : null;
-          if (point) items.push({ type: 'venue', id: venue.id, name: venue.name, ...point });
+          const point = await this.resolveVenuePoint(venue, origin);
+          if (point && this.isReasonableVenuePoint(point, origin)) items.push({ type: 'venue', id: venue.id, name: venue.name, ...point });
         }
         return items;
+      },
+
+      async resolveVenuePoint(venue, origin) {
+        const cachedPoint = this.normalizePoint(venue.geoPlace);
+        if (cachedPoint && this.isReasonableVenuePoint(cachedPoint, origin)) return cachedPoint;
+        const baseQuery = [venue.address, venue.name].filter(Boolean).join(' ');
+        if (!baseQuery) {
+          console.warn('[PickPick] map venue geo skipped', { venueId: venue.id, venueName: venue.name, reason: 'empty query' });
+          return null;
+        }
+        const point = await this.resolveReasonablePoint(baseQuery, origin, venue);
+        if (!point) return null;
+        this.saveVenuePoint(venue.id, point);
+        return point;
+      },
+
+      async resolveReasonablePoint(baseQuery, origin, venue) {
+        const cityPrefix = origin?.city || origin?.province || '';
+        const queries = [
+          baseQuery,
+          cityPrefix ? `${cityPrefix} ${baseQuery}` : ''
+        ].filter(Boolean);
+        for (const query of [...new Set(queries)]) {
+          const point = this.normalizePoint(await GeoService.geocode(query));
+          if (!point) {
+            console.warn('[PickPick] map venue geo skipped', {
+              venueId: venue.id,
+              venueName: venue.name,
+              query,
+              reason: 'geocode empty'
+            });
+            continue;
+          }
+          const distanceKm = origin ? this.getDistanceKm(point, origin) : 0;
+          if (this.isReasonableVenuePoint(point, origin)) return point;
+          console.warn('[PickPick] map venue geo skipped', {
+            venueId: venue.id,
+            venueName: venue.name,
+            query,
+            reason: 'too far from origin',
+            distanceKm: Math.round(distanceKm)
+          });
+        }
+        return null;
+      },
+
+      saveVenuePoint(venueId, point) {
+        const venues = Storage.loadVenues();
+        const target = venues.find((venue) => venue.id === venueId);
+        if (!target) {
+          console.warn('[PickPick] map venue geo cache skipped', { venueId, reason: 'venue not found' });
+          return;
+        }
+        const geoPlace = {
+          name: point.name || point.formattedAddress || target.name || '',
+          formattedAddress: point.formattedAddress || '',
+          city: point.city || '',
+          district: point.district || '',
+          adcode: point.adcode || '',
+          latitude: point.latitude,
+          longitude: point.longitude,
+          lat: point.lat,
+          lon: point.lon
+        };
+        const saved = Storage.saveVenues(venues.map((venue) => (
+          venue.id === venueId ? { ...venue, geoPlace } : venue
+        )));
+        console.info('[PickPick] map venue geo cached', {
+          venueId,
+          venueName: target.name,
+          saved,
+          geoPlace
+        });
+      },
+
+      isReasonableVenuePoint(point, origin) {
+        if (!origin) return true;
+        return this.getDistanceKm(point, origin) <= 80;
+      },
+
+      getDistanceKm(left, right) {
+        const toRadians = (value) => Number(value) * Math.PI / 180;
+        const earthRadiusKm = 6371;
+        const dLat = toRadians(right.lat - left.lat);
+        const dLon = toRadians(right.lon - left.lon);
+        const lat1 = toRadians(left.lat);
+        const lat2 = toRadians(right.lat);
+        const a = Math.sin(dLat / 2) ** 2
+          + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      },
+
+      normalizePoint(point) {
+        if (!point) return null;
+        const parsedLocation = String(point.location || '').split(',').map((item) => Number(item));
+        let latitude = Number(point.latitude ?? point.lat ?? parsedLocation[1]);
+        let longitude = Number(point.longitude ?? point.lon ?? parsedLocation[0]);
+        if (Math.abs(latitude) > 90 && Math.abs(longitude) <= 90) {
+          [latitude, longitude] = [longitude, latitude];
+        }
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        return {
+          ...point,
+          latitude,
+          longitude,
+          lat: latitude,
+          lon: longitude
+        };
       },
 
       getBounds(items) {
@@ -3945,6 +4100,7 @@
       },
 
       positionPins(items, bounds) {
+        const positionedVenueIds = new Set(items.filter((item) => item.type === 'venue').map((item) => item.id));
         items.forEach((item) => {
           const position = this.project(item, bounds);
           if (item.type === 'origin') {
@@ -3959,20 +4115,39 @@
           }
           const safeId = this.escapeSelector(item.id);
           this.setPosition(document.querySelector(`[data-map-venue-id="${safeId}"]`), position);
+          const pin = document.querySelector(`[data-map-venue-id="${safeId}"]`);
+          if (pin) pin.style.display = '';
           this.setPosition(document.querySelector(`[data-map-label-id="${safeId}"]`), {
             x: position.x,
             y: Math.max(8, position.y - 10)
           });
+          const label = document.querySelector(`[data-map-label-id="${safeId}"]`);
+          if (label) label.style.display = '';
+        });
+        document.querySelectorAll('[data-map-venue-id]').forEach((pin) => {
+          if (!positionedVenueIds.has(pin.dataset.mapVenueId)) pin.style.display = 'none';
+        });
+        document.querySelectorAll('[data-map-label-id]').forEach((label) => {
+          if (!positionedVenueIds.has(label.dataset.mapLabelId)) label.style.display = 'none';
         });
       },
 
       project(item, bounds) {
         const x = ((item.lon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * 100;
-        const y = (1 - ((item.lat - bounds.minLat) / (bounds.maxLat - bounds.minLat))) * 100;
+        const minY = this.mercatorY(bounds.minLat);
+        const maxY = this.mercatorY(bounds.maxLat);
+        const pointY = this.mercatorY(item.lat);
+        const y = (1 - ((pointY - minY) / (maxY - minY))) * 100;
         return {
           x: Math.max(8, Math.min(92, x)),
           y: Math.max(12, Math.min(88, y))
         };
+      },
+
+      mercatorY(latitude) {
+        const clamped = Math.max(-85.05112878, Math.min(85.05112878, Number(latitude)));
+        const radians = clamped * Math.PI / 180;
+        return Math.log(Math.tan(Math.PI / 4 + radians / 2));
       },
 
       setPosition(element, position) {
@@ -4098,8 +4273,53 @@
         }
       },
 
+      async geocode(query) {
+        const address = String(query || '').trim();
+        if (!this.isConfigured() || !address) return null;
+        try {
+          console.info('[PickPick] backend geocode start', { address });
+          const response = await fetch(this.endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              type: 'geocode',
+              address
+            })
+          });
+          console.info('[PickPick] backend geocode response', {
+            ok: response.ok,
+            status: response.status,
+            url: response.url
+          });
+          if (!response.ok) throw new Error(`geocode failed: ${response.status}`);
+          const data = await response.json();
+          console.info('[PickPick] backend geocode data', data);
+          return this.normalizePlace(data.data?.place || data.place || null);
+        } catch (error) {
+          console.warn('[PickPick] backend geocode fallback', {
+            address,
+            message: error?.message || String(error)
+          });
+          return null;
+        }
+      },
+
       extractFirstUrl(value) {
         return String(value || '').match(/https?:\/\/\S+/)?.[0] || '';
+      },
+
+      normalizePlace(place) {
+        if (!place) return null;
+        const latitude = Number(place.latitude ?? place.lat);
+        const longitude = Number(place.longitude ?? place.lon);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        return {
+          ...place,
+          name: place.formattedAddress || place.name || place.query || '',
+          latitude,
+          longitude,
+          lat: latitude,
+          lon: longitude
+        };
       },
 
       getSourceText(data = {}) {
