@@ -2283,10 +2283,18 @@
         if (event.target.id === 'channel-link-form') {
           event.preventDefault();
           const formData = new FormData(event.target);
+          const link = String(formData.get('link') || '').trim();
+          console.info('[PickPick] channel submit', {
+            owner: event.target.dataset.owner,
+            venueId: event.target.dataset.venueId,
+            channel: event.target.dataset.channel,
+            linkLength: link.length,
+            backendConfigured: BackendClient.isConfigured()
+          });
           if (event.target.dataset.owner === 'pick') {
-            await PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+            await PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, link);
           } else {
-            await this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+            await this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, link);
           }
           return;
         }
@@ -2641,6 +2649,14 @@
       },
 
       async saveChannelLink(venueId, channel, link) {
+        console.info('[PickPick] star saveChannelLink', {
+          venueId,
+          channel,
+          linkLength: String(link || '').length,
+          hasDraft: Boolean(this.step12Draft),
+          draftId: this.step12Draft?.id || '',
+          backendConfigured: BackendClient.isConfigured()
+        });
         if (this.step12Draft && this.step12Draft.id === venueId) {
           const baseDraft = {
             ...this.step12Draft,
@@ -2667,7 +2683,10 @@
         }
         const venues = Storage.loadVenues();
         const venue = venues.find((item) => item.id === venueId);
-        if (!venue) return;
+        if (!venue) {
+          console.warn('[PickPick] star saveChannelLink skipped: venue not found', { venueId, channel });
+          return;
+        }
         const baseVenue = {
           ...venue,
           channelLinks: {
@@ -2781,7 +2800,7 @@
             </div>
             ${links[0] ? `<div class="source-link">${UI.escape(links[0])}</div>` : ''}
             <p class="placeholder-text">${labels.length ? `本地已提取：${UI.escape(labels.join('、'))}` : '还没有提取到字段，可以继续粘贴页面文字。'}</p>
-            <p class="placeholder-text">${BackendClient.isConfigured() ? '后端 API 已配置，将优先尝试自动提取。' : '链接内容等待后端 API 提取；当前仅保存链接并使用本地文字规则。'}</p>
+            <p class="placeholder-text">${UI.escape(BackendClient.getStatusText())}</p>
           </div>
         `;
       },
@@ -3469,6 +3488,12 @@
       },
 
       async saveChannelLink(venueId, channel, link) {
+        console.info('[PickPick] pick saveChannelLink', {
+          venueId,
+          channel,
+          linkLength: String(link || '').length,
+          backendConfigured: BackendClient.isConfigured()
+        });
         const currentPick = Storage.loadCurrentPick();
         const copiedInfo = {
           ...(currentPick.copiedInfo || {}),
@@ -3479,19 +3504,42 @@
         };
         Storage.saveCurrentPick({ ...currentPick, copiedInfo });
         const venues = Storage.loadVenues();
-        const venue = venues.find((item) => item.id === venueId);
+        const venue = venues.find((item) => item.id === venueId) || this.createDraftVenueForExtraction(venueId);
+        const extraction = await BackendClient.extractVenueInfo({
+          rawText: link,
+          channel,
+          venue,
+          context: 'pick'
+        });
         let changedFields = [];
-        if (venue) {
-          const extraction = await BackendClient.extractVenueInfo({
-            rawText: link,
-            channel,
-            venue,
-            context: 'pick'
-          });
+        if (venues.some((item) => item.id === venueId)) {
           changedFields = AIExtractor.saveExtractedVenue(venue, link, venues, extraction.venue);
+        } else {
+          console.warn('[PickPick] pick saveChannelLink extracted without saved venue', { venueId, channel });
         }
         UI.closeModal();
         UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
+      },
+
+      createDraftVenueForExtraction(venueId) {
+        const currentPick = Storage.loadCurrentPick();
+        return {
+          id: venueId || 'pick_draft',
+          name: '',
+          address: currentPick.userLocation || '',
+          hours: '',
+          price: { amount: 0, unit: '日' },
+          tags: [],
+          customTags: [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes: '',
+          images: [],
+          channelLinks: {},
+          visitCount: 0,
+          createdAt: new Date().toISOString().slice(0, 10),
+          sceneType: '其他'
+        };
       },
 
       toggleConfirmedVenue(venueId) {
@@ -3940,14 +3988,38 @@
     };
 
     const BackendClient = {
-      endpoint: '',
+      endpoint: 'https://1452700938-gzyqz1yprr.ap-guangzhou.tencentscf.com',
+      lastStatus: 'idle',
 
       isConfigured() {
         return Boolean(this.endpoint);
       },
 
+      getStatusText() {
+        if (!this.isConfigured()) return '链接内容等待后端 API 提取；当前仅保存链接并使用本地文字规则。';
+        if (this.lastStatus === 'remote-data') return '后端已连接，并返回了 API 提取结果。';
+        if (this.lastStatus === 'remote-empty') return '后端已连接，当前空壳暂未返回提取结果，已使用本地规则。';
+        if (this.lastStatus === 'remote-error') return '后端请求失败，已使用本地规则。';
+        return '后端已配置；保存并提取时会先请求云函数。';
+      },
+
       async extractVenueInfo(payload) {
+        console.info('[PickPick] backend extract start', {
+          configured: this.isConfigured(),
+          endpoint: this.endpoint,
+          context: payload.context,
+          channel: payload.channel,
+          textLength: String(payload.rawText || '').length,
+          venueId: payload.venue?.id || '',
+          venueName: payload.venue?.name || ''
+        });
         if (!this.isConfigured()) {
+          this.lastStatus = 'local';
+          console.info('[PickPick] backend extract fallback', {
+            reason: 'endpoint not configured',
+            context: payload.context,
+            channel: payload.channel
+          });
           return {
             source: 'local',
             venue: AIExtractor.extractVenue(payload.rawText)
@@ -3966,13 +4038,40 @@
               context: payload.context
             })
           });
-          if (!response.ok) throw new Error('extract failed');
+          console.info('[PickPick] backend extract response', {
+            ok: response.ok,
+            status: response.status,
+            url: response.url
+          });
+          if (!response.ok) throw new Error(`extract failed: ${response.status}`);
           const data = await response.json();
+          console.info('[PickPick] backend extract data', data);
+          const remoteVenue = this.normalizeVenue(data);
+          if (!this.hasVenueData(remoteVenue)) {
+            this.lastStatus = 'remote-empty';
+            console.info('[PickPick] backend extract fallback', {
+              reason: 'remote empty',
+              context: payload.context,
+              channel: payload.channel
+            });
+            return {
+              source: 'remote-empty',
+              venue: AIExtractor.extractVenue(payload.rawText)
+            };
+          }
+          this.lastStatus = 'remote-data';
           return {
             source: 'remote',
-            venue: this.normalizeVenue(data)
+            venue: remoteVenue
           };
         } catch (error) {
+          this.lastStatus = 'remote-error';
+          console.warn('[PickPick] backend extract fallback', {
+            reason: 'remote error',
+            message: error?.message || String(error),
+            context: payload.context,
+            channel: payload.channel
+          });
           return {
             source: 'local',
             error,
@@ -3986,7 +4085,7 @@
       },
 
       normalizeVenue(data = {}) {
-        const source = data.venue || data;
+        const source = data.data?.venue || data.data || data.venue || data;
         return {
           name: source.name || source.title || '',
           address: source.address || source.location || '',
@@ -4002,6 +4101,21 @@
           notes: source.notes || source.description || '',
           sceneType: source.sceneType || source.type || ''
         };
+      },
+
+      hasVenueData(venue = {}) {
+        return Boolean(
+          venue.name ||
+          venue.address ||
+          venue.hours ||
+          Number(venue.price?.amount) > 0 ||
+          venue.tags?.length ||
+          venue.customTags?.length ||
+          venue.menuInfo ||
+          venue.membershipInfo ||
+          venue.notes ||
+          venue.sceneType
+        );
       }
     };
 
