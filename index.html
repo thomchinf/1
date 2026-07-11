@@ -4028,7 +4028,6 @@
         try {
           const response = await fetch(this.endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'extract',
               channel: payload.channel,
@@ -4047,16 +4046,35 @@
           const data = await response.json();
           console.info('[PickPick] backend extract data', data);
           const remoteVenue = this.normalizeVenue(data);
+          const sourceText = this.getSourceText(data);
+          const localText = this.combineText(payload.rawText, sourceText);
           if (!this.hasVenueData(remoteVenue)) {
-            this.lastStatus = 'remote-empty';
+            const localVenue = AIExtractor.extractVenue(localText);
+            if (sourceText && this.hasVenueData(localVenue)) {
+              this.lastStatus = 'remote-data';
+              console.info('[PickPick] backend extract used sourceText', {
+                sourceTextLength: sourceText.length,
+                context: payload.context,
+                channel: payload.channel
+              });
+              return {
+                source: 'remote-source',
+                venue: localVenue,
+                sourceText,
+                note: data.data?.note || null
+              };
+            }
+            this.lastStatus = sourceText ? 'remote-data' : 'remote-empty';
             console.info('[PickPick] backend extract fallback', {
-              reason: 'remote empty',
+              reason: sourceText ? 'remote sourceText without fields' : 'remote empty',
               context: payload.context,
               channel: payload.channel
             });
             return {
-              source: 'remote-empty',
-              venue: AIExtractor.extractVenue(payload.rawText)
+              source: sourceText ? 'remote-source-empty' : 'remote-empty',
+              venue: localVenue,
+              sourceText,
+              note: data.data?.note || null
             };
           }
           this.lastStatus = 'remote-data';
@@ -4082,6 +4100,25 @@
 
       extractFirstUrl(value) {
         return String(value || '').match(/https?:\/\/\S+/)?.[0] || '';
+      },
+
+      getSourceText(data = {}) {
+        const source = data.data || data;
+        const note = source.note || {};
+        return [
+          source.sourceText,
+          note.title ? `标题：${note.title}` : '',
+          note.desc ? `正文：${note.desc}` : '',
+          note.author ? `作者：${note.author}` : '',
+          note.ipLocation ? `地区：${note.ipLocation}` : ''
+        ]
+          .filter(Boolean)
+          .join('\n');
+      },
+
+      combineText(rawText, sourceText) {
+        const parts = [rawText, sourceText].map((item) => String(item || '').trim()).filter(Boolean);
+        return [...new Set(parts)].join('\n');
       },
 
       normalizeVenue(data = {}) {
@@ -4213,13 +4250,19 @@
       },
 
       extractName(lines) {
-        const line = lines.find((item) => !/链接|地址|营业|时间|价格|电话|导航|收藏|团购/.test(item));
-        return line?.replace(/^[#【\[]|[】\]#]$/g, '').trim() || '未命名场地';
+        const line = lines
+          .map((item) => this.stripSourcePrefix(item))
+          .find((item) => !/链接|地址|营业|时间|价格|电话|导航|收藏|团购/.test(item));
+        return line
+          ?.replace(/^(标题|名称|店名)[:：\s]*/, '')
+          .replace(/^[#【\[]|[】\]#]$/g, '')
+          .trim() || '未命名场地';
       },
 
       extractAddress(lines) {
-        const addressLine = lines.find((line) => /^(地址|位置|导航|门店地址)[:：\s]/.test(line))
-          || lines.find((line) => /(区|县|路|街|道|号|大学|广场|中心|商场)/.test(line));
+        const cleanLines = lines.map((line) => this.stripSourcePrefix(line));
+        const addressLine = cleanLines.find((line) => /^(地址|位置|导航|门店地址)[:：\s]/.test(line))
+          || cleanLines.find((line) => /(区|县|路|街|道|号|大学|广场|中心|商场)/.test(line));
         if (!addressLine) return '';
         return addressLine
           .replace(/^(地址|位置|导航|门店地址)[:：\s]*/, '')
@@ -4228,12 +4271,20 @@
       },
 
       extractHours(text, lines) {
-        const hourLine = lines.find((line) => /(营业|时间|开放|周一|周二|周三|周四|周五|周六|周日|\d{1,2}[:：]\d{2})/.test(line));
+        const cleanLines = lines.map((line) => this.stripSourcePrefix(line));
+        const hourLine = cleanLines.find((line) => /(营业|时间|开放|周一|周二|周三|周四|周五|周六|周日|\d{1,2}[:：]\d{2})/.test(line));
         if (!hourLine) return '';
         const range = hourLine.match(/(\d{1,2}[:：]\d{2})\s*[-~—至到]\s*(\d{1,2}[:：]\d{2})/);
         if (range) return `${range[1].replace('：', ':')}-${range[2].replace('：', ':')}`;
         const times = text.match(/\d{1,2}[:：]\d{2}/g);
         return times?.length >= 2 ? `${times[0].replace('：', ':')}-${times[1].replace('：', ':')}` : hourLine.trim();
+      },
+
+      stripSourcePrefix(line) {
+        return String(line || '')
+          .replace(/^\s*(?:\[[^\]]{1,12}\]|【[^】]{1,12}】|#[^#\s]{1,16}#)\s*/g, '')
+          .replace(/^\s*(?:[^\s:：]{1,8}R)\s*/g, '')
+          .trim();
       },
 
       extractPrice(text) {
