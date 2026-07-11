@@ -2256,14 +2256,14 @@
         this.runAction(trigger.dataset.action, trigger.dataset.id);
       },
 
-      handleSubmit(event) {
+      async handleSubmit(event) {
         if (event.target.id === 'channel-link-form') {
           event.preventDefault();
           const formData = new FormData(event.target);
           if (event.target.dataset.owner === 'pick') {
-            PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+            await PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
           } else {
-            this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
+            await this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, formData.get('link').trim());
           }
           return;
         }
@@ -2617,7 +2617,7 @@
         `);
       },
 
-      saveChannelLink(venueId, channel, link) {
+      async saveChannelLink(venueId, channel, link) {
         if (this.step12Draft && this.step12Draft.id === venueId) {
           const baseDraft = {
             ...this.step12Draft,
@@ -2626,7 +2626,13 @@
               [channel]: link
             }
           };
-          const nextDraft = AIExtractor.applyToVenue(baseDraft, link);
+          const extraction = await BackendClient.extractVenueInfo({
+            rawText: link,
+            channel,
+            venue: baseDraft,
+            context: 'star'
+          });
+          const nextDraft = AIExtractor.applyToVenue(baseDraft, link, extraction.venue);
           const changedFields = AIExtractor.getChangedFields(baseDraft, nextDraft);
           this.step12Draft = {
             ...nextDraft
@@ -2646,7 +2652,13 @@
             [channel]: link
           }
         };
-        const nextVenue = AIExtractor.applyToVenue(baseVenue, link);
+        const extraction = await BackendClient.extractVenueInfo({
+          rawText: link,
+          channel,
+          venue: baseVenue,
+          context: 'star'
+        });
+        const nextVenue = AIExtractor.applyToVenue(baseVenue, link, extraction.venue);
         const changedFields = AIExtractor.getChangedFields(baseVenue, nextVenue);
         if (!Storage.saveVenues(venues.map((item) => (item.id === venueId ? nextVenue : item)))) return;
         UI.closeModal();
@@ -3388,7 +3400,7 @@
         `);
       },
 
-      saveChannelLink(venueId, channel, link) {
+      async saveChannelLink(venueId, channel, link) {
         const currentPick = Storage.loadCurrentPick();
         const copiedInfo = {
           ...(currentPick.copiedInfo || {}),
@@ -3400,9 +3412,16 @@
         Storage.saveCurrentPick({ ...currentPick, copiedInfo });
         const venues = Storage.loadVenues();
         const venue = venues.find((item) => item.id === venueId);
-        const changedFields = venue
-          ? AIExtractor.saveExtractedVenue(venue, link, venues)
-          : [];
+        let changedFields = [];
+        if (venue) {
+          const extraction = await BackendClient.extractVenueInfo({
+            rawText: link,
+            channel,
+            venue,
+            context: 'pick'
+          });
+          changedFields = AIExtractor.saveExtractedVenue(venue, link, venues, extraction.venue);
+        }
         UI.closeModal();
         UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
       },
@@ -3852,6 +3871,72 @@
       }
     };
 
+    const BackendClient = {
+      endpoint: '',
+
+      isConfigured() {
+        return Boolean(this.endpoint);
+      },
+
+      async extractVenueInfo(payload) {
+        if (!this.isConfigured()) {
+          return {
+            source: 'local',
+            venue: AIExtractor.extractVenue(payload.rawText)
+          };
+        }
+        try {
+          const response = await fetch(this.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'extract',
+              channel: payload.channel,
+              text: payload.rawText,
+              url: this.extractFirstUrl(payload.rawText),
+              venue: payload.venue,
+              context: payload.context
+            })
+          });
+          if (!response.ok) throw new Error('extract failed');
+          const data = await response.json();
+          return {
+            source: 'remote',
+            venue: this.normalizeVenue(data)
+          };
+        } catch (error) {
+          return {
+            source: 'local',
+            error,
+            venue: AIExtractor.extractVenue(payload.rawText)
+          };
+        }
+      },
+
+      extractFirstUrl(value) {
+        return String(value || '').match(/https?:\/\/\S+/)?.[0] || '';
+      },
+
+      normalizeVenue(data = {}) {
+        const source = data.venue || data;
+        return {
+          name: source.name || source.title || '',
+          address: source.address || source.location || '',
+          hours: source.hours || source.openingHours || source.time || '',
+          price: {
+            amount: Number(source.price?.amount ?? source.priceAmount ?? source.price) || 0,
+            unit: source.price?.unit || source.priceUnit || '日'
+          },
+          tags: Array.isArray(source.tags) ? source.tags : [],
+          customTags: Array.isArray(source.customTags) ? source.customTags : [],
+          menuInfo: source.menuInfo || source.menu || '',
+          membershipInfo: source.membershipInfo || source.cardInfo || source.membership || '',
+          notes: source.notes || source.description || '',
+          sceneType: source.sceneType || source.type || ''
+        };
+      }
+    };
+
     const AIExtractor = {
       extractVenue(rawText) {
         const text = this.normalizeText(rawText);
@@ -3875,8 +3960,8 @@
         };
       },
 
-      applyToVenue(venue, rawText) {
-        const extracted = this.extractVenue(rawText);
+      applyToVenue(venue, rawText, extractedVenue = null) {
+        const extracted = extractedVenue || this.extractVenue(rawText);
         const nextVenue = { ...venue };
         const mergeText = (field) => {
           if (extracted[field] && !nextVenue[field]) nextVenue[field] = extracted[field];
@@ -3897,8 +3982,8 @@
         return nextVenue;
       },
 
-      saveExtractedVenue(venue, rawText, venues = Storage.loadVenues()) {
-        const nextVenue = this.applyToVenue(venue, rawText);
+      saveExtractedVenue(venue, rawText, venues = Storage.loadVenues(), extractedVenue = null) {
+        const nextVenue = this.applyToVenue(venue, rawText, extractedVenue);
         const changedFields = this.getChangedFields(venue, nextVenue);
         if (changedFields.length) {
           Storage.saveVenues(venues.map((item) => (item.id === venue.id ? nextVenue : item)));
