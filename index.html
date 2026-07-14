@@ -9,18 +9,23 @@
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <style>
     :root {
-      --color-primary: #2DCD9B;
-      --color-primary-dark: #159D77;
-      --color-bg: #FAFAFA;
-      --color-surface: #FFFFFF;
-      --color-text: #1F2933;
-      --color-muted: #6B7280;
-      --color-line: #E5E7EB;
-      --color-soft: #F2FBF8;
-      --color-danger: #E5484D;
-      --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
-      --radius-card: 12px;
-      --radius-control: 12px;
+      --color-primary: #5F6B4A;
+      --color-primary-dark: #3F4A35;
+      --color-accent: #E36F45;
+      --color-accent-dark: #D85F3F;
+      --color-highlight: #E8C76B;
+      --color-bluegreen: #8FAAA3;
+      --color-bg: #FAF6EF;
+      --color-surface: #FFFDF8;
+      --color-surface-soft: #F3EBDD;
+      --color-text: #2F332B;
+      --color-muted: #6F7468;
+      --color-line: #D8D0C2;
+      --color-soft: #F3EBDD;
+      --color-danger: #D85F3F;
+      --shadow-card: 0 8px 22px rgba(63, 74, 53, 0.08);
+      --radius-card: 18px;
+      --radius-control: 16px;
       --space-1: 4px;
       --space-2: 8px;
       --space-3: 12px;
@@ -86,7 +91,7 @@
 
     .eyebrow {
       margin: 0 0 var(--space-1);
-      color: var(--color-primary-dark);
+      color: var(--color-accent-dark);
       font-size: 13px;
       font-weight: 700;
     }
@@ -95,6 +100,15 @@
       margin: 0;
       font-size: 24px;
       line-height: 1.2;
+    }
+
+    #star-title,
+    #star-copy-title {
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 28px;
+      font-style: italic;
+      font-weight: 600;
+      letter-spacing: 0;
     }
 
     .header-copy {
@@ -125,8 +139,9 @@
 
     .metric {
       min-width: 0;
-      border-radius: 10px;
-      background: var(--color-soft);
+      border: 1px solid rgba(216, 208, 194, 0.78);
+      border-radius: 14px;
+      background: var(--color-surface-soft);
       padding: var(--space-3);
     }
 
@@ -173,10 +188,10 @@
     .status-banner {
       display: none;
       margin-bottom: var(--space-4);
-      border: 1px solid rgba(229, 72, 77, 0.28);
+      border: 1px solid rgba(216, 95, 63, 0.28);
       border-radius: var(--radius-control);
-      background: #FFF5F5;
-      color: #A8252A;
+      background: #FFF3ED;
+      color: #9C3F29;
       padding: var(--space-3);
       font-size: 13px;
       line-height: 1.5;
@@ -187,9 +202,9 @@
     }
 
     .status-banner.is-success {
-      border-color: rgba(45, 205, 155, 0.36);
-      background: #ECFDF5;
-      color: #13765A;
+      border-color: rgba(95, 107, 74, 0.34);
+      background: #F0EBDD;
+      color: var(--color-primary-dark);
     }
 
     .search-field,
@@ -215,7 +230,7 @@
       min-height: 44px;
       border: 1px solid var(--color-line);
       border-radius: var(--radius-control);
-      background: #FFFFFF;
+      background: var(--color-surface);
       color: var(--color-text);
       padding: 10px 12px;
       outline: none;
@@ -230,8 +245,8 @@
     input:focus,
     textarea:focus,
     select:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(45, 205, 155, 0.16);
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 3px rgba(227, 111, 69, 0.14);
     }
 
     .venue-list {
@@ -240,11 +255,54 @@
       margin-top: var(--space-4);
     }
 
+    .star-search-panel {
+      display: grid;
+      gap: var(--space-3);
+      border: 0;
+      background: transparent;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .star-filter-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .star-filter-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .star-filter-field {
+      flex: 0 0 auto;
+      display: block;
+    }
+
+    .star-filter-field span {
+      display: none;
+    }
+
+    .star-filter-field select {
+      width: 54px;
+      min-height: 26px;
+      padding: 0 8px;
+      border: 1px solid rgba(216, 208, 194, 0.86);
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.88);
+      color: var(--color-primary-dark);
+      font-size: 10px;
+      font-weight: 700;
+      box-shadow: 0 3px 10px rgba(47, 51, 43, 0.08);
+    }
+
     .venue-card {
       position: relative;
       overflow: hidden;
       display: grid;
-      grid-template-rows: minmax(96px, 1fr) auto;
+      grid-template-rows: minmax(138px, 1fr) auto;
       border: 1px solid var(--color-line);
       border-radius: var(--radius-card);
       background-position: center;
@@ -252,7 +310,7 @@
       box-shadow: var(--shadow-card);
       color: #FFFFFF;
       isolation: isolate;
-      min-height: 240px;
+      min-height: 216px;
     }
 
     .venue-card::before {
@@ -260,7 +318,7 @@
       inset: 0;
       z-index: -1;
       content: "";
-      background: linear-gradient(180deg, rgba(31, 41, 51, 0.04) 0%, rgba(31, 41, 51, 0.12) 42%, rgba(31, 41, 51, 0.82) 100%);
+      background: linear-gradient(180deg, rgba(47, 51, 43, 0.02) 0%, rgba(47, 51, 43, 0.12) 42%, rgba(47, 51, 43, 0.74) 100%);
     }
 
     .venue-card::after {
@@ -268,7 +326,7 @@
       inset: 0;
       z-index: -2;
       content: "";
-      background: #1F2933;
+      background: var(--color-primary-dark);
     }
 
     .venue-card-header {
@@ -278,15 +336,68 @@
       gap: var(--space-2);
     }
 
+    .venue-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .venue-title-row h3 {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .joined-badge {
+      flex: 0 0 auto;
+      color: rgba(255, 253, 248, 0.62);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
     .venue-card-body {
       align-self: end;
       display: grid;
-      gap: var(--space-2);
-      margin: var(--space-3);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 10px;
-      background: rgba(31, 41, 51, 0.54);
-      padding: var(--space-3);
+      gap: 6px;
+      margin: var(--space-2);
+      border: 1px solid rgba(255, 253, 248, 0.20);
+      border-radius: 14px;
+      background: rgba(47, 51, 43, 0.52);
+      padding: 9px 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    .star-photo-label {
+      position: absolute;
+      left: 50%;
+      top: 38%;
+      z-index: 1;
+      color: rgba(255, 253, 248, 0.74);
+      font-size: 13px;
+      font-weight: 800;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .star-card-remove {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      min-height: 24px;
+      border: 1px solid rgba(255, 253, 248, 0.42);
+      border-radius: 50%;
+      background: rgba(95, 107, 74, 0.62);
+      color: #FFFFFF;
+      font-size: 15px;
+      font-weight: 800;
       backdrop-filter: blur(10px);
     }
 
@@ -318,7 +429,7 @@
     .scene-badge {
       flex: 0 0 auto;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 253, 248, 0.20);
       color: #FFFFFF;
       padding: 3px 8px;
       font-size: 12px;
@@ -335,33 +446,38 @@
 
     .tag {
       border-radius: 999px;
-      background: #F3F4F6;
+      background: var(--color-surface-soft);
       color: var(--color-muted);
-      padding: 4px 7px;
+      padding: 5px 9px;
       font-size: 11px;
       line-height: 1.2;
     }
 
     .tag.is-primary {
-      background: var(--color-soft);
+      background: rgba(95, 107, 74, 0.14);
       color: var(--color-primary-dark);
       font-weight: 700;
     }
 
     .tag.is-muted {
-      background: #E5E7EB;
-      color: #9CA3AF;
+      background: #EEE6D9;
+      color: #A79E90;
       text-decoration: line-through;
     }
 
     .venue-card .tag {
-      background: rgba(255, 255, 255, 0.2);
-      color: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 253, 248, 0.20);
+      color: rgba(255, 253, 248, 0.9);
       backdrop-filter: blur(10px);
     }
 
     .venue-card .tag.is-primary {
-      background: rgba(45, 205, 155, 0.88);
+      background: rgba(232, 199, 107, 0.86);
+      color: var(--color-text);
+    }
+
+    .venue-card .tag.is-muted {
+      background: rgba(255, 253, 248, 0.14);
       color: #FFFFFF;
     }
 
@@ -373,16 +489,28 @@
     }
 
     .card-actions {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 6px;
+    }
+
+    .venue-card .card-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .venue-card .text-btn {
+      width: auto;
+      min-width: 68px;
+      min-height: 28px;
+      padding: 0 14px;
     }
 
     .text-btn,
     .danger-btn {
       min-height: 32px;
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      border-radius: 9px;
-      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 253, 248, 0.24);
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.16);
       color: #FFFFFF;
       font-size: 12px;
       font-weight: 700;
@@ -390,14 +518,23 @@
     }
 
     .text-btn.is-primary {
-      border-color: rgba(45, 205, 155, 0.56);
-      background: rgba(45, 205, 155, 0.9);
+      border-color: rgba(227, 111, 69, 0.62);
+      background: rgba(227, 111, 69, 0.92);
       color: #FFFFFF;
     }
 
+    .venue-card .text-btn.is-primary {
+      border-color: rgba(255, 253, 248, 0.36);
+      background: rgba(255, 253, 248, 0.20);
+      color: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
     .danger-btn {
-      border-color: rgba(255, 255, 255, 0.22);
-      color: #FFE3E3;
+      border-color: rgba(255, 253, 248, 0.24);
+      color: #FFE8DE;
     }
 
     button:disabled {
@@ -410,7 +547,7 @@
       gap: var(--space-3);
       border: 1px dashed var(--color-line);
       border-radius: var(--radius-card);
-      background: #FFFFFF;
+      background: var(--color-surface);
       padding: var(--space-5);
       text-align: center;
     }
@@ -436,7 +573,7 @@
     .modal-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(31, 41, 51, 0.42);
+      background: rgba(47, 51, 43, 0.36);
     }
 
     .modal-sheet {
@@ -449,9 +586,12 @@
       max-width: 430px;
       max-height: min(88vh, 760px);
       overflow-y: auto;
-      border-radius: 20px 20px 0 0;
-      background: #FFFFFF;
+      border: 1px solid rgba(216, 208, 194, 0.88);
+      border-bottom: 0;
+      border-radius: 24px 24px 0 0;
+      background: var(--color-surface);
       padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -14px 32px rgba(63, 74, 53, 0.12);
       transform: translateX(-50%);
     }
 
@@ -469,7 +609,7 @@
       min-height: 40px;
       border: 0;
       border-radius: 50%;
-      background: #F3F4F6;
+      background: var(--color-surface-soft);
       color: var(--color-muted);
       font-size: 22px;
       line-height: 1;
@@ -666,7 +806,8 @@
     }
 
     .date-item.is-active {
-      background: #CFCFCF;
+      background: var(--color-primary);
+      color: #FFFFFF;
       transform: translateY(-1px);
     }
 
@@ -676,7 +817,7 @@
     }
 
     .date-item.is-active strong {
-      color: #111111;
+      color: #FFFFFF;
       font-weight: 800;
     }
 
@@ -688,13 +829,14 @@
 
     .weather-card {
       min-height: 124px;
-      border: 0;
-      border-radius: 20px;
-      background: #D8D8D8;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-soft) 100%);
       padding: var(--space-4);
-      color: #111111;
+      color: var(--color-text);
       font-size: 11px;
       line-height: 1.5;
+      box-shadow: var(--shadow-card);
     }
 
     .weather-card strong {
@@ -719,9 +861,11 @@
     .station-panel,
     .select-panel {
       min-height: 156px;
-      border-radius: 18px;
-      background: #D8D8D8;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface);
       padding: var(--space-3);
+      box-shadow: var(--shadow-card);
     }
 
     .station-panel {
@@ -740,17 +884,18 @@
     .station-add-btn,
     .station-step-btn {
       min-height: 28px;
-      border: 1px solid #111111;
-      border-radius: 0;
-      background: transparent;
-      color: #111111;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface-soft);
+      color: var(--color-primary-dark);
       font-size: 12px;
       font-weight: 700;
     }
 
     .station-step-btn {
-      border-color: var(--color-primary);
-      color: var(--color-primary-dark);
+      border-color: var(--color-accent);
+      background: var(--color-accent);
+      color: #FFFFFF;
     }
 
     .station-step-btn:disabled {
@@ -771,9 +916,9 @@
       grid-template-columns: 1fr auto;
       align-items: center;
       gap: 6px;
-      border: 1px solid #111111;
-      border-radius: 0;
-      background: transparent;
+      border: 1px solid var(--color-line);
+      border-radius: 12px;
+      background: var(--color-surface-soft);
       padding: 6px 8px;
     }
 
@@ -787,16 +932,16 @@
     .selected-item p,
     .star-picker-item p {
       margin: 3px 0 0;
-      color: #333333;
+      color: var(--color-muted);
       font-size: 10px;
       line-height: 1.35;
     }
 
     .mini-btn {
       min-height: 34px;
-      border: 1px solid #111111;
-      border-radius: 0;
-      background: transparent;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
       color: var(--color-text);
       padding: 0 10px;
       font-size: 12px;
@@ -804,13 +949,13 @@
     }
 
     .mini-btn.is-primary {
-      border-color: rgba(45, 205, 155, 0.36);
-      background: var(--color-soft);
-      color: var(--color-primary-dark);
+      border-color: var(--color-accent);
+      background: var(--color-accent);
+      color: #FFFFFF;
     }
 
     .mini-btn.is-danger {
-      border-color: rgba(229, 72, 77, 0.24);
+      border-color: rgba(216, 95, 63, 0.32);
       color: var(--color-danger);
     }
 
@@ -824,12 +969,12 @@
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      min-height: 16px;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
+      min-height: 28px;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
       color: var(--color-text);
-      padding: 0;
+      padding: 0 10px 0 8px;
       font-size: 10px;
       font-weight: 600;
     }
@@ -837,7 +982,7 @@
     .condition-pill input {
       width: 10px;
       min-height: 10px;
-      accent-color: #111111;
+      accent-color: var(--color-primary);
     }
 
     .custom-condition-form {
@@ -849,9 +994,9 @@
 
     .custom-condition-form input {
       min-height: 30px;
-      border: 1px solid #111111;
-      border-radius: 0;
-      background: transparent;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
       font-size: 11px;
     }
 
@@ -905,7 +1050,7 @@
       gap: 8px;
       border: 0;
       background: transparent;
-      color: #111111;
+      color: var(--color-text);
       padding: 0;
       text-align: center;
     }
@@ -915,7 +1060,9 @@
       width: 54px;
       height: 54px;
       border-radius: 50%;
-      background: #D8D8D8;
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      box-shadow: 0 6px 14px rgba(63, 74, 53, 0.08);
       font-style: normal;
     }
 
@@ -931,8 +1078,8 @@
       margin: 0 calc(var(--space-4) * -1);
       overflow: hidden;
       background:
-        radial-gradient(circle at 50% 62%, rgba(255,255,255,0.22) 0 54px, transparent 55px),
-        linear-gradient(180deg, #ECECEC 0 44%, #DCDCDC 44% 100%);
+        radial-gradient(circle at 50% 62%, rgba(255, 253, 248, 0.46) 0 54px, transparent 55px),
+        linear-gradient(180deg, #F7F1E8 0 44%, #EEE3D3 44% 100%);
       cursor: grab;
       user-select: none;
     }
@@ -948,7 +1095,7 @@
       top: -58px;
       height: 140px;
       border-radius: 50%;
-      background: #F4F4F4;
+      background: #FFFDF8;
       content: "";
     }
 
@@ -972,7 +1119,7 @@
     .venue-cup {
       position: relative;
       height: 156px;
-      color: #0F172A;
+      color: var(--color-primary-dark);
       text-align: center;
       opacity: 0.55;
     }
@@ -987,8 +1134,9 @@
       right: 42px;
       top: 18px;
       bottom: 8px;
-      border: 1.5px solid #0F172A;
+      border: 1.5px solid var(--color-primary-dark);
       border-radius: 26px 26px 36px 36px;
+      background: rgba(255, 253, 248, 0.44);
       content: "";
     }
 
@@ -997,7 +1145,7 @@
       left: 16px;
       right: 16px;
       top: 50px;
-      border-top: 1px solid #0F172A;
+      border-top: 1px solid rgba(63, 74, 53, 0.58);
       content: "";
     }
 
@@ -1011,23 +1159,46 @@
       white-space: nowrap;
       font-size: 16px;
       line-height: 1.2;
-      text-decoration: underline;
+      text-decoration: none;
     }
 
     .star-cup-card {
       display: grid;
       place-items: center;
       min-height: 218px;
-      border-radius: 8px;
-      background: #D8D8D8;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-soft) 100%);
       padding: var(--space-4);
+      box-shadow: var(--shadow-card);
+    }
+
+    .star12-actions {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      gap: var(--space-2);
+      align-items: center;
+      margin-bottom: var(--space-2);
+    }
+
+    .star12-actions .secondary-btn,
+    .star12-actions .primary-btn {
+      min-height: 34px;
+      width: auto;
+      padding: 0 var(--space-3);
+      font-size: 12px;
+    }
+
+    .channel-orbit.is-star12 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-2);
     }
 
     .star-cup {
       position: relative;
       width: 190px;
       height: 156px;
-      color: #0F172A;
+      color: var(--color-primary-dark);
       text-align: center;
     }
 
@@ -1037,8 +1208,9 @@
       right: 42px;
       top: 18px;
       bottom: 8px;
-      border: 1.5px solid #0F172A;
+      border: 1.5px solid var(--color-primary-dark);
       border-radius: 26px 26px 36px 36px;
+      background: rgba(255, 253, 248, 0.52);
       content: "";
     }
 
@@ -1047,11 +1219,11 @@
       left: 16px;
       right: 16px;
       top: 50px;
-      border-top: 1px solid #0F172A;
+      border-top: 1px solid rgba(63, 74, 53, 0.58);
       content: "";
     }
 
-    .star-cup span {
+    .star-cup-name {
       position: absolute;
       left: 34px;
       right: 34px;
@@ -1061,23 +1233,58 @@
       white-space: nowrap;
       font-size: 16px;
       line-height: 1.2;
-      text-decoration: underline;
+      text-decoration: none;
+    }
+
+    .star-cup-logo {
+      position: absolute;
+      left: 50%;
+      top: 30px;
+      transform: translateX(-50%);
+      color: var(--color-muted);
+      font-size: 10px;
+      font-weight: 800;
     }
 
     .star-info-panel {
       display: grid;
       gap: var(--space-2);
-      border-radius: 8px;
-      background: #F3F4F6;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface);
       padding: var(--space-3);
+      box-shadow: var(--shadow-card);
+    }
+
+    .star-info-image {
+      display: grid;
+      place-items: center;
+      min-height: 128px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: var(--color-surface-soft);
+      color: var(--color-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .star-info-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .star-info-list {
+      display: grid;
+      gap: 7px;
     }
 
     .star-info-row {
       display: grid;
-      grid-template-columns: 42px minmax(0, 1fr);
+      grid-template-columns: 58px minmax(0, 1fr);
       gap: var(--space-2);
       align-items: start;
-      color: #111111;
+      color: var(--color-text);
       font-size: 12px;
       line-height: 1.45;
     }
@@ -1096,8 +1303,8 @@
       display: grid;
       gap: var(--space-2);
       border: 1px solid var(--color-line);
-      border-radius: 8px;
-      background: #FFFFFF;
+      border-radius: 14px;
+      background: var(--color-surface);
       padding: var(--space-3);
     }
 
@@ -1124,16 +1331,18 @@
       position: relative;
       overflow: hidden;
       min-height: 220px;
-      border: 1px solid #111111;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
       background:
-        linear-gradient(90deg, rgba(17,17,17,0.08) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(17,17,17,0.08) 1px, transparent 1px),
-        #F3F4F6;
+        linear-gradient(90deg, rgba(95, 107, 74, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(95, 107, 74, 0.08) 1px, transparent 1px),
+        #EDF3EF;
       background-size: 44px 44px;
+      box-shadow: var(--shadow-card);
     }
 
     .map-placeholder.is-live {
-      background: #E8EEF2;
+      background: #EDF3EF;
     }
 
     .map-frame {
@@ -1150,7 +1359,7 @@
       left: 12%;
       right: 10%;
       top: 50%;
-      border-top: 2px dashed rgba(17,17,17,0.5);
+      border-top: 2px dashed rgba(95, 107, 74, 0.48);
       transform: rotate(-10deg);
     }
 
@@ -1158,7 +1367,7 @@
       position: absolute;
       width: 18px;
       height: 18px;
-      border: 2px solid #111111;
+      border: 2px solid var(--color-primary-dark);
       border-radius: 50% 50% 50% 0;
       background: var(--color-primary);
       transform: rotate(-45deg);
@@ -1167,7 +1376,7 @@
     .map-pin.is-origin {
       left: var(--x, 16%);
       top: var(--y, 58%);
-      background: #FFFFFF;
+      background: var(--color-surface);
       transform: translate(-50%, -50%) rotate(-45deg);
     }
 
@@ -1180,17 +1389,17 @@
       left: var(--x);
       top: var(--y);
       right: auto;
-      border-color: #6B7280;
-      background: #FFFFFF;
+      border-color: var(--color-muted);
+      background: var(--color-surface);
       transform: translate(-50%, -50%) rotate(-45deg);
     }
 
     .map-pin.is-venue.is-selected {
       width: 24px;
       height: 24px;
-      border-color: #111111;
-      background: var(--color-primary);
-      box-shadow: 0 0 0 6px rgba(45, 205, 155, 0.22);
+      border-color: var(--color-primary-dark);
+      background: var(--color-accent);
+      box-shadow: 0 0 0 6px rgba(227, 111, 69, 0.18);
       z-index: 3;
     }
 
@@ -1199,8 +1408,9 @@
       left: var(--x);
       top: var(--y);
       max-width: 120px;
-      border: 1px solid #111111;
-      background: #FFFFFF;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
       padding: 5px 7px;
       font-size: 11px;
       font-weight: 800;
@@ -1208,9 +1418,9 @@
     }
 
     .map-label.is-selected {
-      border-color: var(--color-primary-dark);
-      background: #ECFDF5;
-      color: #0F513F;
+      border-color: var(--color-accent);
+      background: #FFF1E9;
+      color: var(--color-accent-dark);
       z-index: 4;
     }
 
@@ -1238,9 +1448,11 @@
     .result-card {
       display: grid;
       gap: var(--space-3);
-      border: 1px solid #111111;
-      background: #FFFFFF;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface);
       padding: var(--space-3);
+      box-shadow: var(--shadow-card);
     }
 
     .result-card.is-dimmed {
@@ -1272,7 +1484,7 @@
 
     .result-score {
       border-radius: 999px;
-      background: #111111;
+      background: var(--color-primary-dark);
       color: #FFFFFF;
       padding: 4px 8px;
       font-size: 11px;
@@ -1303,12 +1515,13 @@
       width: 58px;
       height: 58px;
       border-radius: 50%;
-      background: #D9D9D9;
+      background: radial-gradient(circle at 35% 30%, #FFFDF8 0 28%, #E8C76B 29% 46%, #8FAAA3 47% 100%);
+      border: 1px solid var(--color-line);
     }
 
     .my-profile p {
       margin: 0;
-      color: #111111;
+      color: var(--color-muted);
       font-size: 12px;
       line-height: 1.4;
     }
@@ -1319,7 +1532,7 @@
       gap: var(--space-2);
       align-items: end;
       margin-top: var(--space-2);
-      color: #111111;
+      color: var(--color-text);
     }
 
     .my-month strong {
@@ -1340,19 +1553,21 @@
 
     .my-month-controls select {
       min-height: 30px;
-      border: 1px solid #111111;
-      border-radius: 0;
-      background: transparent;
-      color: #111111;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: var(--color-primary-dark);
       padding: 4px 6px;
       font-size: 11px;
       font-weight: 800;
     }
 
     .my-calendar-card {
-      border-radius: 18px;
-      background: #D8D8D8;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface);
       padding: var(--space-3);
+      box-shadow: var(--shadow-card);
     }
 
     .calendar-grid {
@@ -1366,7 +1581,7 @@
       min-height: 27px;
       border: 1px solid transparent;
       background: transparent;
-      color: #111111;
+      color: var(--color-text);
       font-size: 10px;
       font-weight: 500;
       text-align: center;
@@ -1382,9 +1597,9 @@
       overflow: hidden;
       display: grid;
       place-items: center;
-      border-color: #111111;
-      border-radius: 4px;
-      background: transparent;
+      border-color: var(--color-line);
+      border-radius: 9px;
+      background: rgba(243, 235, 221, 0.42);
       padding: 0;
     }
 
@@ -1404,7 +1619,7 @@
       width: 18px;
       height: 18px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.72);
+      background: rgba(255, 253, 248, 0.78);
     }
 
     .calendar-day.is-empty {
@@ -1413,8 +1628,8 @@
     }
 
     .calendar-day.has-record {
-      background: rgba(255, 255, 255, 0.28);
-      color: #111111;
+      background: rgba(143, 170, 163, 0.16);
+      color: var(--color-text);
     }
 
     .calendar-day.is-today {
@@ -1423,15 +1638,15 @@
     }
 
     .calendar-day.is-active {
-      border-color: #111111;
-      background: #FFFFFF;
-      color: #111111;
-      box-shadow: inset 0 0 0 1px #111111;
+      border-color: var(--color-accent);
+      background: #FFF1E9;
+      color: var(--color-accent-dark);
+      box-shadow: inset 0 0 0 1px var(--color-accent);
     }
 
     .calendar-day.has-photo {
       border-color: var(--color-primary-dark);
-      background: #FFFFFF;
+      background: var(--color-surface);
     }
 
     .calendar-upload-input {
@@ -1443,8 +1658,9 @@
       display: grid;
       gap: 0;
       min-height: 110px;
-      border-radius: 0;
-      background: #D8D8D8;
+      border: 1px dashed var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface-soft);
       padding: 10px 0 10px 20px;
       overflow: hidden;
     }
@@ -1477,7 +1693,7 @@
       min-height: 30px;
       border: 0;
       background: transparent;
-      color: #111111;
+      color: var(--color-text);
       padding: 0 8px 0 16px;
       text-align: left;
     }
@@ -1487,7 +1703,7 @@
       left: 0;
       top: 0;
       bottom: 0;
-      border-left: 1px solid #111111;
+      border-left: 1px solid rgba(95, 107, 74, 0.46);
       content: "";
     }
 
@@ -1497,9 +1713,9 @@
       top: 50%;
       width: 7px;
       height: 7px;
-      border: 1px solid #111111;
+      border: 1px solid var(--color-primary);
       border-radius: 50%;
-      background: #D8D8D8;
+      background: var(--color-surface);
       content: "";
       transform: translateY(-50%);
     }
@@ -1525,7 +1741,7 @@
     .recent-place {
       width: 18px;
       height: 18px;
-      border: 1px solid #111111;
+      border: 1px solid var(--color-line);
       border-radius: 50%;
       display: grid;
       place-items: center;
@@ -1548,12 +1764,14 @@
       display: grid;
       place-items: center;
       min-height: 34px;
-      border: 0;
-      background: transparent;
-      color: #111111;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: var(--color-primary-dark);
       font-size: 20px;
       line-height: 1;
       cursor: pointer;
+      box-shadow: 0 4px 12px rgba(63, 74, 53, 0.06);
     }
 
     .my-tool-btn.is-disabled {
@@ -1581,11 +1799,11 @@
       display: grid;
       gap: var(--space-3);
       min-height: 132px;
-      border: 0;
-      border-radius: 8px;
-      background: #D8D8D8;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface);
       padding: var(--space-3);
-      box-shadow: 8px 0 0 #F2C5DD, 14px 0 0 #BFE4D6, 20px 0 0 #F1D89F;
+      box-shadow: 8px 0 0 rgba(232, 199, 107, 0.42), 14px 0 0 rgba(143, 170, 163, 0.34), 20px 0 0 rgba(216, 95, 63, 0.22);
       overflow: hidden;
       transition: transform 0.18s ease;
     }
@@ -1615,14 +1833,14 @@
       right: 7px;
       bottom: 7px;
       z-index: 4;
-      color: #555555;
+      color: var(--color-muted);
       font-size: 10px;
       font-weight: 800;
     }
 
     .record-note {
       min-height: 54px;
-      border-radius: 8px;
+      border-radius: 12px;
       resize: vertical;
     }
 
@@ -1698,18 +1916,20 @@
       min-height: 44px;
       border: 0;
       border-radius: var(--radius-control);
-      transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+      transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
 
     .primary-btn {
       width: 100%;
-      background: var(--color-primary);
+      background: var(--color-accent);
       color: #FFFFFF;
       font-weight: 700;
+      box-shadow: 0 8px 18px rgba(216, 95, 63, 0.16);
     }
 
     .secondary-btn {
-      background: var(--color-soft);
+      border: 1px solid var(--color-line);
+      background: var(--color-surface);
       color: var(--color-primary-dark);
       font-weight: 700;
       padding: 0 var(--space-4);
@@ -1723,6 +1943,7 @@
       font-size: 22px;
       font-weight: 700;
       line-height: 1;
+      box-shadow: 0 8px 18px rgba(63, 74, 53, 0.14);
     }
 
     .primary-btn:active,
@@ -1751,17 +1972,19 @@
       height: calc(var(--tab-height) + env(safe-area-inset-bottom, 0px));
       padding: var(--space-1) var(--space-3) env(safe-area-inset-bottom, 0px);
       border-top: 1px solid var(--color-line);
-      background: rgba(255, 255, 255, 0.96);
-      backdrop-filter: blur(12px);
+      background: rgba(255, 253, 248, 0.94);
+      box-shadow: 0 -8px 24px rgba(63, 74, 53, 0.08);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       transform: translateX(-50%);
     }
 
     .tab-btn {
       min-height: 52px;
       border: 0;
-      border-radius: 10px;
+      border-radius: 16px;
       background: transparent;
-      color: #999999;
+      color: var(--color-muted);
       font-size: 12px;
       font-weight: 700;
     }
@@ -1774,7 +1997,7 @@
     }
 
     .tab-btn.is-active {
-      background: var(--color-soft);
+      background: rgba(95, 107, 74, 0.12);
       color: var(--color-primary-dark);
     }
 
@@ -2178,6 +2401,14 @@
 
     const StarManager = {
       query: '',
+      starFilters: {
+        environment: '',
+        device: '',
+        food: '',
+        price: '',
+        business: '',
+        pet: ''
+      },
       viewStep: 1,
       activeVenueId: '',
       step12Draft: null,
@@ -2185,6 +2416,7 @@
       init() {
         document.getElementById('tab-star').addEventListener('click', (event) => this.handleClick(event));
         document.getElementById('tab-star').addEventListener('input', (event) => this.handleInput(event));
+        document.getElementById('tab-star').addEventListener('change', (event) => this.handleChange(event));
         document.getElementById('modal-container').addEventListener('click', (event) => this.handleModalClick(event));
         document.getElementById('modal-container').addEventListener('submit', (event) => this.handleSubmit(event));
       },
@@ -2195,19 +2427,14 @@
           return;
         }
         const venues = Storage.loadVenues();
-        const selectedCount = Storage.loadCurrentPick().selectedVenueIds.length;
         document.getElementById('tab-star').innerHTML = `
-          ${UI.renderHeader({ id: 'star-title', text: '收藏库' }, '先把候选自习室和咖啡馆沉淀成自己的地点库。', '<button class="icon-btn" type="button" data-action="new-venue" aria-label="添加地点">+</button>')}
-          <section class="panel">
-            ${UI.renderMetrics([
-              { value: venues.length, label: '已存场地' },
-              { value: venues.filter((venue) => venue.sceneType === '自习室').length, label: '自习室' },
-              { value: selectedCount, label: '已入 Pick' }
-            ])}
+          ${UI.renderHeader({ id: 'star-title', text: 'Star' }, 'Store the favorite places in the database.', '<button class="icon-btn" type="button" data-action="new-venue" aria-label="添加地点">+</button>')}
+          <section class="panel star-search-panel">
             <label class="search-field" for="star-search">
-              搜索场地
-              <input id="star-search" type="search" value="${UI.escape(this.query)}" placeholder="输入场地名称">
+              <span class="sr-only">搜索场地</span>
+              <input id="star-search" type="search" value="${UI.escape(this.query)}" placeholder="Search place name">
             </label>
+            ${this.renderStarFilters(venues)}
             <div id="star-list-area"></div>
           </section>
         `;
@@ -2218,7 +2445,17 @@
         const venues = Storage.loadVenues();
         const currentPick = Storage.loadCurrentPick();
         const keyword = this.query.trim().toLowerCase();
-        const filteredVenues = venues.filter((venue) => venue.name.toLowerCase().includes(keyword));
+        const filteredVenues = venues.filter((venue) => {
+          const searchable = [
+            venue.name,
+            venue.address,
+            venue.sceneType,
+            ...(venue.tags || []),
+            ...(venue.customTags || [])
+          ].join(' ').toLowerCase();
+          const matchesQuery = !keyword || searchable.includes(keyword);
+          return matchesQuery && this.matchesStarFilters(venue);
+        });
         const listArea = document.getElementById('star-list-area');
         if (!listArea) return;
 
@@ -2251,35 +2488,118 @@
         `;
       },
 
-      renderVenueCard(venue, isSelected) {
-        const tags = [...venue.tags, ...venue.customTags];
+      renderStarFilters(venues) {
+        const groups = this.getStarFilterGroups(venues);
+        return `
+          <div class="star-filter-row" aria-label="Star 筛选">
+            ${groups.map((group) => `
+              <label class="star-filter-field">
+                <span>${UI.escape(group.label)}</span>
+                <select data-filter-key="${UI.escape(group.key)}" aria-label="${UI.escape(group.label)}">
+                  <option value="">${UI.escape(group.label)}</option>
+                  ${group.options.map((option) => `
+                    <option value="${UI.escape(option)}" ${this.starFilters[group.key] === option ? 'selected' : ''}>${UI.escape(option)}</option>
+                  `).join('')}
+                </select>
+              </label>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      renderVenueCard(venue, isSelected = false) {
         const background = this.getVenueBackground(venue);
         return `
           <article class="venue-card" style="background-image: url('${background}')">
+            <button class="star-card-remove" type="button" data-action="delete-venue" data-id="${venue.id}" aria-label="删除 ${UI.escape(venue.name)}">−</button>
+            <span class="star-photo-label">图片</span>
             <div class="venue-card-body">
               <div class="venue-card-header">
                 <div>
-                  <h3>${UI.escape(venue.name)}</h3>
-                  <p class="venue-meta">${UI.escape(venue.address || '未填写地址')}</p>
+                  <div class="venue-title-row">
+                    <h3>${UI.escape(venue.name)}</h3>
+                    ${isSelected ? '<span class="joined-badge">已加入</span>' : ''}
+                  </div>
+                  <p class="venue-meta">${UI.escape(venue.address || '未填写地址')} · ${UI.escape(venue.hours || '时间待补充')}</p>
                 </div>
                 <span class="scene-badge">${UI.escape(venue.sceneType || '场地')}</span>
               </div>
-              <p class="venue-meta">${UI.escape(venue.hours || '营业时间待补充')} · ${UI.escape(this.formatPrice(venue))}</p>
-              ${UI.renderTags(tags.slice(0, 4), venue.tags)}
               <div class="card-actions">
-                <button class="text-btn" type="button" data-action="detail-venue" data-id="${venue.id}">查看</button>
-                <button class="text-btn" type="button" data-action="edit-venue" data-id="${venue.id}">编辑</button>
-                <button class="text-btn is-primary" type="button" data-action="add-to-pick" data-id="${venue.id}" ${isSelected ? 'disabled' : ''}>${isSelected ? '已加入' : '加入'}</button>
-                <button class="danger-btn" type="button" data-action="delete-venue" data-id="${venue.id}">删除</button>
+                <button class="text-btn is-primary" type="button" data-action="detail-venue" data-id="${venue.id}">查看</button>
               </div>
             </div>
           </article>
         `;
       },
 
+      getStarFilterGroups(venues = []) {
+        const prices = [...new Set(venues
+          .map((venue) => Number(venue.price?.amount) || 0)
+          .filter((amount) => amount > 0)
+          .sort((a, b) => a - b)
+          .map(String))];
+        return [
+          { key: 'environment', label: '环境', options: ['安静', '禁烟', '靠窗'] },
+          { key: 'device', label: '设备', options: ['插座', '大桌', '音乐', '卫生间'] },
+          { key: 'food', label: '美食', options: ['柠檬巴斯克'] },
+          { key: 'price', label: '价格', options: prices },
+          { key: 'business', label: '业态', options: ['纯咖啡', '日咖夜酒', '书店+咖啡'] },
+          { key: 'pet', label: '宠物', options: ['猫', '狗'] }
+        ];
+      },
+
+      getVenueTagText(venue) {
+        return [...(venue.tags || []), ...(venue.customTags || [])].join(' ');
+      },
+
+      getVenueFieldValue(venue, key) {
+        const groups = this.getStarFilterGroups();
+        const group = groups.find((item) => item.key === key);
+        if (key === 'price') return this.formatPrice(venue);
+        const tagText = this.getVenueTagText(venue);
+        const matched = group?.options.filter((option) => tagText.includes(option)) || [];
+        return matched.join('、') || '-';
+      },
+
+      getVenueInfoRows(venue) {
+        return [
+          ['名称', venue.name || '-'],
+          ['地点', venue.address || '-'],
+          ['时间', venue.hours || '-'],
+          ['场景', venue.sceneType || '-'],
+          ['环境', this.getVenueFieldValue(venue, 'environment')],
+          ['设备', this.getVenueFieldValue(venue, 'device')],
+          ['美食', this.getVenueFieldValue(venue, 'food')],
+          ['价格', this.getVenueFieldValue(venue, 'price')],
+          ['业态', this.getVenueFieldValue(venue, 'business')],
+          ['宠物', this.getVenueFieldValue(venue, 'pet')],
+          ['备注', venue.notes || '-']
+        ];
+      },
+
+      matchesStarFilters(venue) {
+        return Object.entries(this.starFilters).every(([key, value]) => {
+          if (!value) return true;
+          if (key === 'price') {
+            return String(Number(venue.price?.amount) || '') === value;
+          }
+          return this.getVenueTagText(venue).includes(value);
+        });
+      },
+
       handleInput(event) {
         if (event.target.id !== 'star-search') return;
         this.query = event.target.value;
+        this.renderList();
+      },
+
+      handleChange(event) {
+        const key = event.target.dataset.filterKey;
+        if (!key) return;
+        this.starFilters = {
+          ...this.starFilters,
+          [key]: event.target.value
+        };
         this.renderList();
       },
 
@@ -2457,7 +2777,7 @@
       openDetail(venueId) {
         const venue = Storage.loadVenues().find((item) => item.id === venueId);
         if (!venue) return;
-        const allTags = [...venue.tags, ...venue.customTags];
+        const infoRows = this.getVenueInfoRows(venue);
         UI.openModal(`
           <div class="modal-header">
             <div>
@@ -2466,13 +2786,14 @@
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
-          <p class="detail-row">地址：${UI.escape(venue.address || '未填写')}</p>
-          <p class="detail-row">营业时间：${UI.escape(venue.hours || '待补充')}</p>
-          <p class="detail-row">价格：${UI.escape(this.formatPrice(venue))}</p>
-          ${UI.renderTags(allTags, venue.tags)}
-          <p class="detail-row">菜单/饮品：${UI.escape(venue.menuInfo || '暂无菜单信息')}</p>
-          <p class="detail-row">办卡信息：${UI.escape(venue.membershipInfo || '暂无办卡信息')}</p>
-          <p class="detail-row">备注：${UI.escape(venue.notes || '暂无备注')}</p>
+          <div class="star-info-list">
+            ${infoRows.map(([label, value]) => `
+              <div class="star-info-row">
+                <strong>${UI.escape(label)}</strong>
+                <span>${UI.escape(value)}</span>
+              </div>
+            `).join('')}
+          </div>
           <div class="modal-actions">
             <button class="primary-btn" type="button" data-action="add-to-pick" data-id="${venue.id}">加入 Pick</button>
             <button class="secondary-btn" type="button" data-action="edit-venue" data-id="${venue.id}">编辑</button>
@@ -2838,6 +3159,26 @@
         `;
       },
 
+      renderStep12Info(venue) {
+        const image = venue.images?.[0] || '';
+        const infoRows = this.getVenueInfoRows(venue);
+        return `
+          <div class="star-info-panel" aria-label="场地补充信息">
+            <div class="star-info-image">
+              ${image ? `<img src="${UI.escape(image)}" alt="${UI.escape(venue.name)} 图片">` : '图片'}
+            </div>
+            <div class="star-info-list">
+              ${infoRows.map(([label, value]) => `
+                <div class="star-info-row">
+                  <strong>${UI.escape(label)}</strong>
+                  <span>${UI.escape(value)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      },
+
       renderStep12() {
         const venue = this.getStep12Venue();
         if (!venue) {
@@ -2846,41 +3187,27 @@
         }
         this.activeVenueId = venue.id;
         document.getElementById('tab-star').innerHTML = `
-          <div class="step2-nav" aria-label="Star 信息补全导航">
-            <button class="pick-arrow-btn" type="button" data-action="back-star-list" aria-label="返回">←</button>
+          <div class="star12-actions" aria-label="Star 信息补全导航">
+            <button class="secondary-btn" type="button" data-action="back-star-list" aria-label="返回">←</button>
+            <span></span>
+            <button class="primary-btn" type="button" data-action="confirm-star-info">Save</button>
+            <button class="secondary-btn" type="button" data-action="clear-star-info">Clear</button>
           </div>
-          ${UI.renderHeader({ id: 'star-copy-title', text: 'Enjoy coffee any time' }, 'Star 1.2')}
+          ${UI.renderHeader({ id: 'star-copy-title', text: 'Star' }, 'Paste source info and complete one place.')}
           <section class="panel pick-board">
             <div class="step2-shell">
-              <div class="channel-orbit">
-                ${PickManager.renderChannelCard('xiaohongshu', '小红书', '环境', venue.name, 'data-action')}
-                ${PickManager.renderChannelCard('meituan', '美团', '价格', venue.name, 'data-action')}
-                ${PickManager.renderChannelCard('amap', '高德', '位置', venue.name, 'data-action')}
-              </div>
               <div class="star-cup-card">
                 <div class="star-cup">
-                  <span>${UI.escape(venue.name)}</span>
+                  <span class="star-cup-logo">logo</span>
+                  <span class="star-cup-name">${UI.escape(venue.name)}</span>
                 </div>
               </div>
-              <div class="star-info-panel" aria-label="场地补充信息">
-                <div class="star-info-row">
-                  <strong>时间</strong>
-                  <span>${UI.escape(venue.hours || '-')}</span>
-                </div>
-                <div class="star-info-row">
-                  <strong>位置</strong>
-                  <span>${UI.escape(venue.address || '-')}</span>
-                </div>
-                <div class="star-info-row">
-                  <strong>备注</strong>
-                  <span>${UI.escape(venue.notes || '-')}</span>
-                </div>
+              <div class="channel-orbit is-star12">
+                ${PickManager.renderChannelCard('xiaohongshu', '小红书', '环境', venue.name, 'data-action')}
+                ${PickManager.renderChannelCard('dianping', '大众点评', '价格', venue.name, 'data-action')}
               </div>
+              ${this.renderStep12Info(venue)}
               ${this.renderSourceInfo(venue)}
-              <div class="form-actions">
-                <button class="primary-btn" type="button" data-action="confirm-star-info">确认保存到库</button>
-                <button class="secondary-btn" type="button" data-action="clear-star-info">清空信息</button>
-              </div>
             </div>
           </section>
         `;
