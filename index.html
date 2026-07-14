@@ -1773,8 +1773,8 @@
     }
 
     .my-month {
-      display: grid;
-      grid-template-columns: 1fr auto;
+      display: flex;
+      justify-content: flex-end;
       gap: var(--space-2);
       align-items: end;
       margin-top: var(--space-2);
@@ -1792,20 +1792,121 @@
     }
 
     .my-month-controls {
-      display: grid;
-      grid-template-columns: 76px 64px;
-      gap: var(--space-2);
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
     }
 
     .my-month-controls select {
-      min-height: 30px;
+      width: auto;
+      min-height: 20px;
       border: 1px solid var(--color-line);
       border-radius: 999px;
       background: var(--color-surface);
       color: var(--color-primary-dark);
-      padding: 4px 6px;
+      padding: 0 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .my-day-panel {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px;
+      gap: 10px;
+      min-height: 178px;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      background: var(--color-surface);
+      padding: var(--space-3);
+      box-shadow: var(--shadow-card);
+    }
+
+    .my-day-info {
+      align-self: end;
+      display: grid;
+      gap: 3px;
+    }
+
+    .my-day-info h3,
+    .my-day-info p {
+      margin: 0;
+    }
+
+    .my-day-info h3 {
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .my-day-info p {
+      color: var(--color-muted);
+      font-size: 10px;
+      line-height: 1.25;
+    }
+
+    .my-day-actions {
+      display: grid;
+      grid-template-rows: repeat(3, auto) 1fr auto;
+      justify-items: center;
+      gap: 9px;
+      align-items: start;
+    }
+
+    .my-side-action {
+      min-height: 22px;
+      border: 0;
+      background: transparent;
+      color: var(--color-text);
+      padding: 0;
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 13px;
+      font-style: italic;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .my-photo-action {
+      align-self: end;
+      width: 38px;
+      min-height: 38px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--color-accent);
+      color: var(--color-primary-dark);
+      padding: 0;
       font-size: 11px;
+      font-weight: 900;
+      box-shadow: 0 8px 18px rgba(216, 95, 63, 0.20);
+    }
+
+    .my-note-box {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      min-height: 96px;
+      border: 1px solid var(--color-line);
+      border-radius: 8px;
+      background: var(--color-surface-soft);
+      padding: 10px;
+    }
+
+    .my-note-label {
+      color: var(--color-text);
+      font-size: 10px;
       font-weight: 800;
+    }
+
+    .my-note-box .record-note {
+      min-height: 52px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0;
+      resize: vertical;
+    }
+
+    .my-note-box .photo-stack {
+      min-height: 36px;
     }
 
     .my-calendar-card {
@@ -3810,6 +3911,7 @@
         document.getElementById('tab-pick').innerHTML = `
           <div class="step2-nav" aria-label="Pick 结果导航">
             <button class="pick-arrow-btn" type="button" data-pick-action="back-step-2" aria-label="返回 2.2">←</button>
+            <button class="pick-arrow-btn" type="button" data-pick-action="finish-pick" aria-label="完成并进入 My">→</button>
           </div>
           ${UI.renderHeader({ id: 'pick-result-title', text: 'pick result' }, '地图筛选与确认')}
           <section class="panel pick-board">
@@ -4082,7 +4184,8 @@
           'add-condition': () => this.addCustomCondition(),
           'set-date': () => this.setDate(trigger.dataset.date),
           'go-step-2': () => this.goStep2(),
-          'go-step-3': () => this.goStep3()
+          'go-step-3': () => this.goStep3(),
+          'finish-pick': () => this.finishPick()
         };
         if (actions[action]) actions[action]();
       },
@@ -4469,6 +4572,38 @@
         this.viewStep = 3;
         UI.clearStatus();
         this.render();
+      },
+
+      finishPick() {
+        const currentPick = Storage.loadCurrentPick();
+        const selectedVenues = this.getSelectedVenues(currentPick);
+        const confirmedVenueIds = currentPick.confirmedVenueIds?.length
+          ? currentPick.confirmedVenueIds
+          : selectedVenues.slice(0, 1).map((venue) => venue.id);
+        const date = currentPick.date || new Date().toISOString().slice(0, 10);
+        const history = Storage.loadHistory();
+        const existing = history.find((record) => record.date === date);
+        const nextRecord = {
+          ...(existing || {}),
+          id: existing?.id || StarManager.createId('h'),
+          date,
+          userLocation: currentPick.userLocation || existing?.userLocation || '',
+          weather: currentPick.weather?.text || currentPick.weather || existing?.weather || '',
+          venueIds: selectedVenues.map((venue) => venue.id),
+          chosenVenueId: confirmedVenueIds[0] || selectedVenues[0]?.id || '',
+          filterConditions: currentPick.filterConditions || [],
+          notes: existing?.notes || '',
+          calendarPhoto: existing?.calendarPhoto || '',
+          photos: existing?.photos || []
+        };
+        const nextHistory = existing
+          ? history.map((record) => (record.id === existing.id ? nextRecord : record))
+          : [nextRecord, ...history];
+        if (!Storage.saveHistory(nextHistory)) return;
+        HistoryManager.activeDate = date;
+        HistoryManager.activeRecordIndex = HistoryManager.getSortedHistory().findIndex((record) => record.id === nextRecord.id);
+        App.switchTab('my');
+        UI.showStatus('已保存到 My。', 'success');
       }
     };
 
@@ -5419,9 +5554,10 @@
 
       render() {
         const history = this.getSortedHistory();
-        if (this.activeRecordIndex >= history.length) this.activeRecordIndex = Math.max(0, history.length - 1);
-        const activeRecord = history[this.activeRecordIndex] || history[0] || null;
-        const activeDate = this.activeDate || activeRecord?.date || this.formatDateValue(new Date());
+        const todayValue = this.formatDateValue(new Date());
+        const activeDate = this.activeDate || todayValue;
+        const activeRecord = this.getRecordByDate(activeDate, history);
+        this.activeRecordIndex = activeRecord ? history.findIndex((record) => record.id === activeRecord.id) : -1;
         this.activeDate = activeDate;
         document.getElementById('tab-my').innerHTML = `
           <h1 id="my-title" class="sr-only">我的记录</h1>
@@ -5432,8 +5568,7 @@
             </section>
             ${this.renderCalendar(history, activeDate)}
             ${this.renderRecentRecords(history)}
-            ${this.renderToolRow(activeRecord)}
-            ${history.length ? this.renderRecordBook(history) : this.renderEmptyBook(activeDate)}
+            ${this.renderDailyPanel(activeDate, activeRecord)}
           </div>
         `;
       },
@@ -5446,10 +5581,15 @@
         });
       },
 
+      getRecordByDate(date, history = this.getSortedHistory()) {
+        return history.find((record) => record.date === date) || null;
+      },
+
       renderCalendar(history, activeDate) {
         const calendarDate = new Date(`${activeDate}T00:00:00`);
         const year = calendarDate.getFullYear();
         const month = calendarDate.getMonth();
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         const firstDay = new Date(year, month, 1);
         const dayCount = new Date(year, month + 1, 0).getDate();
         const todayValue = this.formatDateValue(new Date());
@@ -5482,20 +5622,22 @@
         return `
           <section>
             <div class="my-month">
-              <div>
-                <strong>${month + 1}月</strong>
-                <span>${year}年${month + 1}月${Number(activeDate.slice(8, 10))}日</span>
-              </div>
               <div class="my-month-controls" aria-label="My 年月选择">
-                <select data-history-date-part="year" aria-label="选择年份">
-                  ${this.getYearOptions(year).map((item) => `<option value="${item}" ${item === year ? 'selected' : ''}>${item}年</option>`).join('')}
-                </select>
-                <select data-history-date-part="month" aria-label="选择月份">
-                  ${Array.from({ length: 12 }, (_, index) => {
-                    const item = index + 1;
-                    return `<option value="${item}" ${index === month ? 'selected' : ''}>${item}月</option>`;
-                  }).join('')}
-                </select>
+                <label class="date-month-control">
+                  <select data-history-date-part="year" aria-label="选择年份">
+                    ${this.getYearOptions(year).map((item) => `<option value="${item}" ${item === year ? 'selected' : ''}>${item}</option>`).join('')}
+                  </select>
+                  <span>年</span>
+                </label>
+                <label class="date-month-control">
+                  <select data-history-date-part="month" aria-label="选择月份">
+                    ${Array.from({ length: 12 }, (_, index) => {
+                      const item = index + 1;
+                      return `<option value="${item}" ${index === month ? 'selected' : ''}>${monthNames[index]}</option>`;
+                    }).join('')}
+                  </select>
+                  <span>月</span>
+                </label>
               </div>
             </div>
             <div class="my-calendar-card">
@@ -5529,6 +5671,36 @@
             <span class="recent-time">${UI.escape(time || '-')}</span>
             <span class="recent-place" aria-hidden="true">⊗</span>
           </button>
+        `;
+      },
+
+      renderDailyPanel(activeDate, record) {
+        const venue = record ? this.getPrimaryVenue(record) : null;
+        const title = venue?.name || record?.title || activeDate;
+        const displayDate = record?.date || activeDate;
+        return `
+          <section class="my-day-panel" aria-label="当天记录">
+            <div>
+              <div class="my-note-box">
+                <span class="my-note-label">note &gt;</span>
+                <textarea class="record-note" id="daily-note-input" placeholder="写下这次选择的体验">${UI.escape(record?.notes || '')}</textarea>
+                <div class="photo-stack">
+                  ${record ? this.renderPhotos(record) : '<div class="photo-empty">照片位置</div>'}
+                </div>
+              </div>
+              <div class="my-day-info">
+                <h3>${UI.escape(title)}</h3>
+                <p>${UI.escape(this.formatShortDate(displayDate))}</p>
+              </div>
+            </div>
+            <div class="my-day-actions">
+              <button class="my-side-action" type="button" data-history-action="save-daily-note" data-id="${record?.id || ''}">save</button>
+              <button class="my-side-action" type="button" data-history-action="open-record-output" data-id="${record?.id || ''}">output</button>
+              <button class="my-side-action" type="button" data-history-action="open-record-star" data-id="${record?.id || ''}">star</button>
+              <span></span>
+              <button class="my-photo-action" type="button" data-history-action="open-photo-source" data-id="${record?.id || ''}">photo</button>
+            </div>
+          </section>
         `;
       },
 
@@ -5612,7 +5784,20 @@
           return;
         }
         if (action === 'open-photo-source') {
-          this.prepareRecordUpload(trigger.dataset.id);
+          const record = this.saveCurrentDailyState(trigger.dataset.id);
+          this.prepareRecordUpload(record?.id || trigger.dataset.id);
+          return;
+        }
+        if (action === 'save-daily-note') {
+          this.saveDailyNote(trigger.dataset.id);
+          return;
+        }
+        if (action === 'open-record-output') {
+          this.openRecordOutput(trigger.dataset.id);
+          return;
+        }
+        if (action === 'open-record-star') {
+          this.openRecordStar(trigger.dataset.id);
           return;
         }
         if (action === 'focus-note') {
@@ -5634,6 +5819,10 @@
         const action = trigger.dataset.historyAction;
         if (action === 'choose-photo-source') {
           this.openPendingPhotoInput(trigger.dataset.source);
+          return;
+        }
+        if (action === 'share-record') {
+          this.shareRecord(trigger.dataset.id);
         }
       },
 
@@ -5664,35 +5853,30 @@
         if (calendarDay) {
           this.startCalendarLongPress(event, calendarDay);
         }
-        const recordBook = event.target.closest('.record-book');
-        if (recordBook && !event.target.closest('textarea, input, button, label')) {
-          this.startBookDrag(event, recordBook);
-        }
       },
 
       handlePointerMove(event) {
         this.moveCalendarLongPress(event);
-        this.moveBookDrag(event);
       },
 
       handlePointerUp() {
         this.endCalendarLongPress();
-        this.endBookDrag();
       },
 
       handlePointerCancel() {
         this.cancelCalendarLongPress();
-        this.cancelBookDrag();
       },
 
       selectRecord(indexValue, dateValue) {
         if (dateValue) this.activeDate = dateValue;
         if (indexValue !== '') {
           this.activeRecordIndex = Number(indexValue);
+          const history = this.getSortedHistory();
+          this.activeDate = history[this.activeRecordIndex]?.date || this.activeDate;
           this.render();
           return;
         }
-        if (dateValue) this.createRecordForDate(dateValue);
+        if (dateValue) this.render();
       },
 
       setDatePart(part, value) {
@@ -5917,6 +6101,145 @@
         if (!record) return;
         if (Storage.loadHistory().length > beforeCount) {
           UI.showStatus('已创建当天记录，可以上传照片或写备注。', 'success');
+        }
+      },
+
+      saveDailyNote(recordId = '') {
+        const record = this.saveCurrentDailyState(recordId);
+        if (!record) return;
+        UI.showStatus('记录已保存。', 'success');
+        this.render();
+      },
+
+      saveCurrentDailyState(recordId = '') {
+        const noteInput = document.getElementById('daily-note-input');
+        const notes = noteInput ? noteInput.value : '';
+        const date = this.activeDate || this.formatDateValue(new Date());
+        const record = recordId
+          ? this.getSortedHistory().find((item) => item.id === recordId)
+          : this.ensureRecordForDate(date, false);
+        if (!record) return;
+        if (!this.saveRecordPatch(record.id, { notes }, false)) return;
+        const history = this.getSortedHistory();
+        this.activeRecordIndex = history.findIndex((item) => item.id === record.id);
+        this.activeDate = record.date;
+        return history.find((item) => item.id === record.id) || { ...record, notes };
+      },
+
+      openRecordOutput(recordId = '') {
+        const record = this.saveCurrentDailyState(recordId);
+        if (!record) return;
+        const venue = this.getPrimaryVenue(record);
+        const venueNames = this.getRecordVenueNames(record);
+        const rows = [
+          ['名称', venue?.name || record.title || '-'],
+          ['日期', record.date || '-'],
+          ['地点', venue?.address || '-'],
+          ['时间', venue?.hours || '-'],
+          ['起点', record.userLocation || '-'],
+          ['场地', venueNames || '-'],
+          ['标签', (record.filterConditions || []).join('、') || '-'],
+          ['照片', `${(record.photos || []).length} 张`],
+          ['备注', record.notes || '-']
+        ];
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Output</p>
+              <h2 class="modal-title">记录详情</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <div class="star-info-list">
+            ${rows.map(([label, value]) => `
+              <div class="star-info-row">
+                <strong>${UI.escape(label)}</strong>
+                <span>${UI.escape(value)}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="modal-actions">
+            <button class="primary-btn" type="button" data-history-action="share-record" data-id="${record.id}">分享</button>
+          </div>
+        `);
+      },
+
+      openRecordStar(recordId = '') {
+        const record = this.saveCurrentDailyState(recordId);
+        if (!record) return;
+        const venue = this.getPrimaryVenue(record);
+        const draft = this.buildStarDraftFromRecord(record, venue);
+        StarManager.openStep12Draft(draft);
+        UI.showStatus('已进入 Star 1.2，可以继续完善信息。', 'success');
+      },
+
+      buildStarDraftFromRecord(record, venue) {
+        const recordPhotos = record.photos || [];
+        if (venue) {
+          const images = [...new Set([...(venue.images || []), ...recordPhotos])];
+          const notes = record.notes
+            ? [venue.notes, record.notes].filter(Boolean).join('\n')
+            : venue.notes;
+          return {
+            ...venue,
+            images,
+            notes
+          };
+        }
+        return {
+          id: StarManager.createId('v'),
+          name: record.title || record.date || '未命名记录',
+          address: record.userLocation || '',
+          hours: '',
+          price: { amount: 0, unit: '次' },
+          tags: record.filterConditions || [],
+          customTags: [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes: record.notes || '',
+          images: recordPhotos,
+          channelLinks: {},
+          visitCount: 0,
+          createdAt: record.date || new Date().toISOString().slice(0, 10),
+          sceneType: '其他'
+        };
+      },
+
+      buildRecordShareText(record) {
+        const venue = this.getPrimaryVenue(record);
+        const venueNames = this.getRecordVenueNames(record);
+        return [
+          `PickPick 记录：${venue?.name || record.title || record.date || '未命名记录'}`,
+          `日期：${record.date || '-'}`,
+          venue?.address ? `地点：${venue.address}` : '',
+          venue?.hours ? `时间：${venue.hours}` : '',
+          record.userLocation ? `起点：${record.userLocation}` : '',
+          venueNames ? `场地：${venueNames}` : '',
+          (record.filterConditions || []).length ? `标签：${record.filterConditions.join('、')}` : '',
+          record.notes ? `备注：${record.notes}` : ''
+        ].filter(Boolean).join('\n');
+      },
+
+      async shareRecord(recordId) {
+        const record = this.getSortedHistory().find((item) => item.id === recordId);
+        if (!record) return;
+        const title = this.getPrimaryVenue(record)?.name || 'PickPick 记录';
+        const text = this.buildRecordShareText(record);
+        try {
+          if (navigator.share) {
+            await navigator.share({ title, text });
+            UI.showStatus('已打开分享面板。', 'success');
+            return;
+          }
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            UI.showStatus('记录文字已复制，可以手动粘贴分享。', 'success');
+            return;
+          }
+          UI.showStatus('当前浏览器不支持直接分享，请手动复制记录内容。');
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+          UI.showStatus('分享失败，请稍后重试。');
         }
       },
 
