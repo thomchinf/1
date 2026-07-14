@@ -103,7 +103,8 @@
     }
 
     #star-title,
-    #star-copy-title {
+    #star-copy-title,
+    #copy-step-title {
       font-family: "Segoe Script", "Brush Script MT", cursive;
       font-size: 28px;
       font-style: italic;
@@ -723,7 +724,8 @@
       text-transform: lowercase;
     }
 
-    .pick-location input {
+    .pick-location input,
+    .pick-location textarea {
       min-height: 34px;
       border: 0;
       border-bottom: 1px solid #111111;
@@ -731,6 +733,8 @@
       background: transparent;
       padding: 4px 0;
       font-size: 13px;
+      line-height: 1.35;
+      resize: vertical;
     }
 
     .pick-arrow-btn {
@@ -1527,15 +1531,15 @@
       border: 1px solid var(--color-line);
       border-radius: var(--radius-card);
       background:
-        linear-gradient(90deg, rgba(95, 107, 74, 0.08) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(95, 107, 74, 0.08) 1px, transparent 1px),
-        #EDF3EF;
+        linear-gradient(90deg, rgba(95, 107, 74, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(95, 107, 74, 0.16) 1px, transparent 1px),
+        #E8EFE4;
       background-size: 44px 44px;
       box-shadow: var(--shadow-card);
     }
 
     .map-placeholder.is-live {
-      background: #EDF3EF;
+      background: #E8EFE4;
     }
 
     .map-frame {
@@ -1544,7 +1548,7 @@
       width: 100%;
       height: 100%;
       border: 0;
-      filter: saturate(0.9) contrast(0.95);
+      filter: saturate(0.58) hue-rotate(18deg) sepia(0.08) contrast(0.84) brightness(1.04);
     }
 
     .map-route {
@@ -1552,7 +1556,7 @@
       left: 12%;
       right: 10%;
       top: 50%;
-      border-top: 2px dashed rgba(95, 107, 74, 0.48);
+      border-top: 2px dashed rgba(63, 74, 53, 0.34);
       transform: rotate(-10deg);
     }
 
@@ -1560,9 +1564,9 @@
       position: absolute;
       width: 18px;
       height: 18px;
-      border: 2px solid var(--color-primary-dark);
+      border: 2px solid rgba(63, 74, 53, 0.72);
       border-radius: 50% 50% 50% 0;
-      background: var(--color-primary);
+      background: #8FAAA3;
       transform: rotate(-45deg);
     }
 
@@ -1591,8 +1595,8 @@
       width: 24px;
       height: 24px;
       border-color: var(--color-primary-dark);
-      background: var(--color-accent);
-      box-shadow: 0 0 0 6px rgba(227, 111, 69, 0.18);
+      background: #5F6B4A;
+      box-shadow: 0 0 0 6px rgba(95, 107, 74, 0.16);
       z-index: 3;
     }
 
@@ -1611,9 +1615,9 @@
     }
 
     .map-label.is-selected {
-      border-color: var(--color-accent);
-      background: #FFF1E9;
-      color: var(--color-accent-dark);
+      border-color: rgba(95, 107, 74, 0.44);
+      background: #EEF4EA;
+      color: #3F4A35;
       z-index: 4;
     }
 
@@ -1635,16 +1639,20 @@
 
     .result-list {
       display: grid;
-      gap: var(--space-3);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .result-card {
+      position: relative;
       display: grid;
-      gap: var(--space-3);
+      grid-template-rows: auto 1fr auto;
+      gap: 8px;
+      min-height: 138px;
       border: 1px solid var(--color-line);
-      border-radius: var(--radius-card);
+      border-radius: 10px;
       background: var(--color-surface);
-      padding: var(--space-3);
+      padding: 28px 10px 9px;
       box-shadow: var(--shadow-card);
     }
 
@@ -1654,15 +1662,26 @@
 
     .result-card-head {
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: var(--space-2);
-      align-items: center;
+      gap: 3px;
+      align-items: start;
     }
 
     .result-check {
-      width: 18px;
-      min-height: 18px;
+      position: absolute;
+      left: 9px;
+      top: 9px;
+      width: 12px;
+      min-height: 12px;
       accent-color: var(--color-primary);
+    }
+
+    .result-refresh {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      color: var(--color-text);
+      font-size: 13px;
+      line-height: 1;
     }
 
     .result-card h3,
@@ -1671,8 +1690,8 @@
     }
 
     .result-card h3 {
-      font-size: 15px;
-      line-height: 1.35;
+      font-size: 13px;
+      line-height: 1.25;
     }
 
     .result-score {
@@ -1685,10 +1704,44 @@
     }
 
     .result-actions {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .result-card-info {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: var(--space-2);
-      align-items: center;
+      gap: 1px;
+      color: var(--color-muted);
+      font-size: 9px;
+      line-height: 1.18;
+    }
+
+    .result-card-info span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-copy-count {
+      margin: 0;
+      color: var(--color-muted);
+      font-size: 9px;
+      line-height: 1.2;
+    }
+
+    .result-star-btn {
+      min-width: 24px;
+      min-height: 24px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #111111;
+      padding: 0;
+      font-size: 15px;
+      line-height: 1;
     }
 
     .my-shell {
@@ -3587,7 +3640,7 @@
               ${this.renderDateStrip(currentPick)}
               <div class="pick-topbar">
                 <div class="pick-location">
-                  <input id="pick-location-input" name="userLocation" value="${UI.escape(currentPick.userLocation)}" placeholder="输入出发位置" data-pick-field="userLocation">
+                  <textarea id="pick-location-input" name="userLocation" rows="2" placeholder="输入出发位置；多个起点可换行或用逗号分隔" data-pick-field="userLocation">${UI.escape(currentPick.userLocation)}</textarea>
                 </div>
               </div>
               ${this.renderWeather(currentPick)}
@@ -3622,6 +3675,17 @@
 
       getStep1Conditions() {
         return ['环境', '设备', '美食', '价格', '业态', '周边', '宠物'];
+      },
+
+      getStartLocations(value) {
+        return String(value || '')
+          .split(/[\n,，、;；]+/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      },
+
+      getPrimaryStartLocation(value) {
+        return this.getStartLocations(value)[0] || '';
       },
 
       renderStep2(currentPick) {
@@ -3735,9 +3799,7 @@
           this.goStep1();
           return;
         }
-        const scoredVenues = this.getScoredVenues(selectedVenues, currentPick.filterConditions);
-        const filteredVenues = scoredVenues.filter((item) => item.matches.length > 0 || !currentPick.filterConditions.length);
-        const visibleVenues = filteredVenues.length ? filteredVenues : scoredVenues;
+        const visibleVenues = selectedVenues.map((venue) => ({ venue, matches: [], misses: [], score: 100 }));
         const confirmedVenueIds = currentPick.confirmedVenueIds?.length
           ? currentPick.confirmedVenueIds
           : visibleVenues.slice(0, 1).map((item) => item.venue.id);
@@ -3753,10 +3815,6 @@
           <section class="panel pick-board">
             <div class="step3-shell">
               ${this.renderMapPlaceholder(visibleVenues, currentPick)}
-              <div class="filter-summary">
-                <p class="helper-text">筛选条件</p>
-                ${this.renderFilterTags(currentPick.filterConditions, visibleVenues)}
-              </div>
               <div class="result-list">
                 ${visibleVenues.map((item) => this.renderResultCard(item, currentPick)).join('')}
               </div>
@@ -3769,11 +3827,19 @@
 
       renderMapPlaceholder(scoredVenues, currentPick) {
         const confirmedVenueIds = currentPick.confirmedVenueIds || [];
+        const startLocations = PickManager.getStartLocations(currentPick.userLocation);
+        const originFallbackPositions = MapView.getOriginFallbackPositions(startLocations.length || 1);
         return `
           <div class="map-placeholder" data-map-view="true" aria-label="地图">
             <div class="map-route"></div>
-            <span class="map-pin is-origin"></span>
-            <div class="map-label" style="--x: 22%; --y: 68%;">${UI.escape(currentPick.userLocation || '出发点')}</div>
+            ${(startLocations.length ? startLocations : ['出发点']).map((location, index) => {
+              const position = originFallbackPositions[index];
+              const id = `origin_${index}`;
+              return `
+                <span class="map-pin is-origin" data-map-origin-id="${id}" style="--x: ${position.x}%; --y: ${position.y}%;"></span>
+                <div class="map-label" data-map-origin-label-id="${id}" style="--x: ${position.x}%; --y: ${Math.max(8, position.y - 10)}%;">${UI.escape(location)}</div>
+              `;
+            }).join('')}
             ${scoredVenues.map((item, index) => {
               const venue = item.venue;
               const position = MapView.getFallbackPosition(index);
@@ -3801,28 +3867,28 @@
       },
 
       renderResultCard(item, currentPick) {
-        const { venue, matches, misses, score } = item;
+        const { venue } = item;
         const checked = currentPick.confirmedVenueIds?.includes(venue.id);
-        const allTags = [...venue.tags, ...venue.customTags];
         const copiedInfo = currentPick.copiedInfo?.[venue.id] || {};
         const copiedCount = ['xiaohongshu', 'dianping'].filter((channel) => copiedInfo[channel]).length;
         return `
-          <article class="result-card${matches.length ? '' : ' is-dimmed'}">
+          <article class="result-card">
             <div class="result-card-head">
               <input class="result-check" type="checkbox" data-pick-action="toggle-confirmed" data-id="${venue.id}" ${checked ? 'checked' : ''} aria-label="显示 ${UI.escape(venue.name)}">
-              <div>
-                <h3>${UI.escape(venue.name)}</h3>
-                <p class="venue-meta">${UI.escape(venue.address || venue.hours || '信息待完善')}</p>
+              <span class="result-refresh" aria-hidden="true">↻</span>
+              <h3>${UI.escape(venue.name)}</h3>
+              <div class="result-card-info">
+                <span>${UI.escape(venue.address || '-')}</span>
+                <span>${UI.escape(venue.hours || '-')}</span>
+                <span>环境：${UI.escape(this.getStep2ConditionValue(venue, '环境'))}</span>
+                <span>设备：${UI.escape(this.getStep2ConditionValue(venue, '设备'))}</span>
+                <span>美食：${UI.escape(this.getStep2ConditionValue(venue, '美食'))}</span>
+                <span>业态：${UI.escape(this.getStep2ConditionValue(venue, '业态'))}</span>
               </div>
-              <span class="result-score">${score}</span>
-            </div>
-            <div class="tag-row">
-              ${allTags.length ? allTags.map((tag) => `<span class="tag${matches.includes(tag) ? ' is-primary' : ''}">${UI.escape(tag)}</span>`).join('') : '<span class="tag is-muted">暂无标签</span>'}
-              ${misses.map((tag) => `<span class="tag is-muted">${UI.escape(tag)}</span>`).join('')}
             </div>
             <div class="result-actions">
-              <p class="venue-meta">已复制 ${copiedCount}/2 个渠道信息</p>
-              <button class="mini-btn is-primary" type="button" data-pick-action="save-result-star" data-id="${venue.id}">收藏到 Star</button>
+              <p class="result-copy-count">${copiedCount}/2</p>
+              <button class="result-star-btn" type="button" data-pick-action="save-result-star" data-id="${venue.id}" aria-label="收藏到 Star">♛</button>
             </div>
           </article>
         `;
@@ -3934,7 +4000,7 @@
       },
 
       renderWeather(currentPick) {
-        if (!currentPick.userLocation) {
+        if (!this.getPrimaryStartLocation(currentPick.userLocation)) {
           return '<div class="weather-card"><strong>weather</strong>填写出发位置后显示天气占位信息。</div>';
         }
         const weather = WeatherService.getWeather(currentPick);
@@ -4258,7 +4324,7 @@
         return {
           id: venueId || 'pick_draft',
           name: '',
-          address: currentPick.userLocation || '',
+          address: this.getPrimaryStartLocation(currentPick.userLocation),
           hours: '',
           price: { amount: 0, unit: '日' },
           tags: [],
@@ -4411,32 +4477,36 @@
       timer: null,
 
       getWeather(currentPick) {
-        if (!currentPick.userLocation) return '';
+        const primaryLocation = this.getPrimaryLocation(currentPick);
+        if (!primaryLocation) return '';
         const weather = currentPick.weather;
         if (typeof weather === 'string' && weather) return weather;
         if (weather?.text) return weather.text;
-        return `${currentPick.userLocation} · 正在获取天气...`;
+        return `${primaryLocation} · 正在获取天气...`;
       },
 
       ensureWeather(currentPick) {
-        if (!currentPick.userLocation) return;
-        const key = `${currentPick.userLocation}|${currentPick.date}`;
+        const primaryLocation = this.getPrimaryLocation(currentPick);
+        if (!primaryLocation) return;
+        const key = `${primaryLocation}|${currentPick.date}`;
         if (this.hasResolvedWeather(currentPick.weather, key) || this.pendingKey === key) return;
         window.setTimeout(() => this.fetchWeather(currentPick), 0);
       },
 
       scheduleFetch(location) {
+        const primaryLocation = PickManager.getPrimaryStartLocation(location);
         if (this.timer) window.clearTimeout(this.timer);
-        this.updateWeatherText(location ? `${location} · 正在获取天气...` : '填写出发位置后显示天气信息。');
+        this.updateWeatherText(primaryLocation ? `${primaryLocation} · 正在获取天气...` : '填写出发位置后显示天气信息。');
         this.timer = window.setTimeout(() => {
           const currentPick = Storage.loadCurrentPick();
-          if (currentPick.userLocation) this.fetchWeather({ ...currentPick, weather: null });
+          if (this.getPrimaryLocation(currentPick)) this.fetchWeather({ ...currentPick, weather: null });
         }, 500);
       },
 
       async fetchWeather(currentPick) {
-        if (!currentPick.userLocation) return;
-        const key = `${currentPick.userLocation}|${currentPick.date}`;
+        const primaryLocation = this.getPrimaryLocation(currentPick);
+        if (!primaryLocation) return;
+        const key = `${primaryLocation}|${currentPick.date}`;
         if (this.pendingKey === key || this.hasResolvedWeather(currentPick.weather, key)) return;
         this.pendingKey = key;
         try {
@@ -4444,17 +4514,17 @@
           if (!place) throw new Error('place not found');
           const weather = await this.fetchForecast(place, currentPick, key);
           const latestPick = Storage.loadCurrentPick();
-          if (latestPick.userLocation !== currentPick.userLocation || latestPick.date !== currentPick.date) return;
+          if (this.getPrimaryLocation(latestPick) !== primaryLocation || latestPick.date !== currentPick.date) return;
           Storage.saveCurrentPick({ ...latestPick, originPlace: place, weather });
           this.updateWeatherText(weather.text);
         } catch (error) {
           const fallback = {
             key,
             unavailable: true,
-            text: `${currentPick.userLocation} · 天气暂不可用`
+            text: `${primaryLocation} · 天气暂不可用`
           };
           const latestPick = Storage.loadCurrentPick();
-          if (latestPick.userLocation === currentPick.userLocation) {
+          if (this.getPrimaryLocation(latestPick) === primaryLocation) {
             Storage.saveCurrentPick({ ...latestPick, weather: fallback });
           }
           this.updateWeatherText(fallback.text);
@@ -4466,8 +4536,12 @@
       async getUsablePlace(currentPick) {
         const savedPlace = this.normalizePlace(currentPick.originPlace);
         if (savedPlace) return savedPlace;
-        const resolvedPlace = await GeoService.geocode(currentPick.userLocation);
+        const resolvedPlace = await GeoService.geocode(this.getPrimaryLocation(currentPick));
         return this.normalizePlace(resolvedPlace);
+      },
+
+      getPrimaryLocation(currentPick) {
+        return PickManager.getPrimaryStartLocation(currentPick.userLocation);
       },
 
       normalizePlace(place) {
@@ -4501,7 +4575,7 @@
         const wind = Math.round(Number(current.wind_speed_10m));
         return {
           key,
-          text: `${currentPick.userLocation || place.name} · ${this.describeWeather(current.weather_code)} · ${Number.isFinite(temperature) ? `${temperature}°C` : '-'} · 湿度 ${Number.isFinite(humidity) ? `${humidity}%` : '-'} · 风 ${Number.isFinite(wind) ? `${wind}km/h` : '-'}`
+          text: `${this.getPrimaryLocation(currentPick) || place.name} · ${this.describeWeather(current.weather_code)} · ${Number.isFinite(temperature) ? `${temperature}°C` : '-'} · 湿度 ${Number.isFinite(humidity) ? `${humidity}%` : '-'} · 风 ${Number.isFinite(wind) ? `${wind}km/h` : '-'}`
         };
       },
 
@@ -4560,7 +4634,8 @@
       saveOriginPlace(query, point) {
         if (!point) return;
         const currentPick = Storage.loadCurrentPick();
-        if (String(currentPick.userLocation || '').trim().toLowerCase() !== String(query || '').trim().toLowerCase()) return;
+        const primaryLocation = PickManager.getPrimaryStartLocation(currentPick.userLocation);
+        if (String(primaryLocation || '').trim().toLowerCase() !== String(query || '').trim().toLowerCase()) return;
         Storage.saveCurrentPick({
           ...currentPick,
           originPlace: point
@@ -4658,6 +4733,16 @@
         return this.fallbackPositions[index % this.fallbackPositions.length];
       },
 
+      getOriginFallbackPositions(count = 1) {
+        const positions = [
+          { x: 22, y: 68 },
+          { x: 34, y: 74 },
+          { x: 18, y: 48 },
+          { x: 38, y: 52 }
+        ];
+        return Array.from({ length: Math.max(1, count) }, (_, index) => positions[index % positions.length]);
+      },
+
       async render(scoredVenues, currentPick) {
         const map = document.querySelector('[data-map-view="true"]');
         if (!map || !scoredVenues.length) return;
@@ -4678,9 +4763,18 @@
 
       async resolveMapItems(scoredVenues, currentPick) {
         const items = [];
-        const originQuery = currentPick.userLocation ? `${currentPick.userLocation}` : '';
-        const origin = this.normalizePoint(currentPick.originPlace) || this.normalizePoint(originQuery ? await GeoService.geocode(originQuery) : null);
-        if (origin) items.push({ ...origin, type: 'origin', id: 'origin', name: currentPick.userLocation || origin.name || '出发点' });
+        const originQueries = PickManager.getStartLocations(currentPick.userLocation);
+        const originPoints = [];
+        for (const [index, query] of originQueries.entries()) {
+          const savedOrigin = index === 0 ? this.normalizePoint(currentPick.originPlace) : null;
+          const originPoint = savedOrigin || this.normalizePoint(query ? await GeoService.geocode(query) : null);
+          if (originPoint) {
+            const originItem = { ...originPoint, type: 'origin', id: `origin_${index}`, name: query || originPoint.name || '出发点' };
+            originPoints.push(originItem);
+            items.push(originItem);
+          }
+        }
+        const origin = originPoints[0] || null;
         for (const item of scoredVenues) {
           const venue = item.venue;
           const point = await this.resolveVenuePoint(venue, origin);
@@ -4825,16 +4919,21 @@
 
       positionPins(items, bounds) {
         const positionedVenueIds = new Set(items.filter((item) => item.type === 'venue').map((item) => item.id));
+        const positionedOriginIds = new Set(items.filter((item) => item.type === 'origin').map((item) => item.id));
         items.forEach((item) => {
           const position = this.project(item, bounds);
           if (item.type === 'origin') {
-            this.setPosition(document.querySelector('.map-pin.is-origin'), position);
-            const originLabel = document.querySelector('[data-map-view="true"] > .map-label:not([data-map-label-id])');
+            const safeOriginId = this.escapeSelector(item.id);
+            this.setPosition(document.querySelector(`[data-map-origin-id="${safeOriginId}"]`), position);
+            const originPin = document.querySelector(`[data-map-origin-id="${safeOriginId}"]`);
+            if (originPin) originPin.style.display = '';
+            const originLabel = document.querySelector(`[data-map-origin-label-id="${safeOriginId}"]`);
             if (originLabel) originLabel.textContent = item.name;
             this.setPosition(originLabel, {
               x: position.x,
               y: Math.max(8, position.y - 10)
             });
+            if (originLabel) originLabel.style.display = '';
             return;
           }
           const safeId = this.escapeSelector(item.id);
@@ -4853,6 +4952,12 @@
         });
         document.querySelectorAll('[data-map-label-id]').forEach((label) => {
           if (!positionedVenueIds.has(label.dataset.mapLabelId)) label.style.display = 'none';
+        });
+        document.querySelectorAll('[data-map-origin-id]').forEach((pin) => {
+          if (!positionedOriginIds.has(pin.dataset.mapOriginId)) pin.style.display = 'none';
+        });
+        document.querySelectorAll('[data-map-origin-label-id]').forEach((label) => {
+          if (!positionedOriginIds.has(label.dataset.mapOriginLabelId)) label.style.display = 'none';
         });
       },
 
