@@ -1060,7 +1060,7 @@
 
     .step2-shell {
       display: grid;
-      gap: var(--space-4);
+      gap: var(--space-3);
       min-height: 560px;
       overflow: hidden;
     }
@@ -1085,38 +1085,117 @@
 
     .channel-orbit {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-3);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
       align-items: start;
-      padding: var(--space-2) 0;
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: 8px;
+      background: var(--color-surface);
+      padding: 0;
+      box-shadow: 0 10px 24px rgba(63, 74, 53, 0.06);
     }
 
     .channel-dot {
       display: grid;
       justify-items: center;
-      gap: 8px;
+      gap: 4px;
       border: 0;
-      background: transparent;
+      border-right: 1px solid var(--color-line);
+      background: rgba(255, 253, 248, 0.72);
       color: var(--color-text);
-      padding: 0;
+      min-height: 52px;
+      padding: 8px 6px;
       text-align: center;
+    }
+
+    .channel-dot:last-child {
+      border-right: 0;
     }
 
     .channel-dot em {
       display: block;
-      width: 54px;
-      height: 54px;
-      border-radius: 50%;
-      background: var(--color-surface);
-      border: 1px solid var(--color-line);
-      box-shadow: 0 6px 14px rgba(63, 74, 53, 0.08);
+      width: 16px;
+      height: 16px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
       font-style: normal;
+    }
+
+    .channel-dot em::before {
+      display: block;
+      color: var(--color-primary-dark);
+      font-size: 15px;
+      line-height: 16px;
+      content: "⌘";
     }
 
     .channel-dot strong {
       display: block;
-      font-size: 11px;
+      font-size: 10px;
       line-height: 1.2;
+    }
+
+    .pick-step2-info-card {
+      display: grid;
+      gap: var(--space-3);
+      border: 1px solid var(--color-line);
+      border-radius: 10px;
+      background: var(--color-surface);
+      padding: var(--space-3);
+      box-shadow: var(--shadow-card);
+    }
+
+    .pick-step2-image {
+      display: grid;
+      place-items: center;
+      min-height: 144px;
+      overflow: hidden;
+      background: var(--color-surface-soft);
+      color: var(--color-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .pick-step2-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .pick-step2-info-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .pick-step2-info-row {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 8px;
+      color: var(--color-text);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .pick-step2-info-row strong {
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 12px;
+      font-style: italic;
+      font-weight: 700;
+    }
+
+    .pick-step2-info-row span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      color: var(--color-muted);
+    }
+
+    .step2-swipe-hint {
+      margin: -10px 0 0;
+      text-align: center;
+      font-size: 10px;
     }
 
     .venue-carousel {
@@ -3555,11 +3634,12 @@
         }
         const progress = `${currentPick.activeVenueIndex + 1}/${selectedVenues.length}`;
         document.getElementById('tab-pick').innerHTML = this.renderCopyStep({
-          title: 'Enjoy coffee any time',
-          subtitle: `当前地点 ${progress}`,
+          title: 'PICK',
+          subtitle: `Paste source links by venue. ${progress}`,
           venue: activeVenue,
           venues: selectedVenues,
           activeIndex: currentPick.activeVenueIndex,
+          filterConditions: currentPick.filterConditions,
           progress,
           backAction: 'back-step-1',
           nextAction: 'go-step-3',
@@ -3567,7 +3647,7 @@
         });
       },
 
-      renderCopyStep({ title, subtitle, venue, venues = [venue], activeIndex = 0, backAction, nextAction, actionAttribute }) {
+      renderCopyStep({ title, subtitle, venue, venues = [venue], activeIndex = 0, filterConditions = [], backAction, nextAction, actionAttribute }) {
         return `
           <div class="step2-nav" aria-label="步骤导航">
             <button class="pick-arrow-btn" type="button" ${actionAttribute}="${backAction}" aria-label="返回">←</button>
@@ -3576,16 +3656,13 @@
           ${UI.renderHeader({ id: 'copy-step-title', text: title }, subtitle)}
           <section class="panel pick-board">
             <div class="step2-shell">
-              <div class="step2-title">
-                <h2>${UI.escape(venue.name)}</h2>
-              </div>
+              ${this.renderVenueCarousel(venues, activeIndex)}
+              <p class="helper-text step2-swipe-hint">Swipe to switch place</p>
               <div class="channel-orbit">
                 ${this.renderChannelCard('xiaohongshu', '小红书', '环境', venue.name, actionAttribute)}
-                ${this.renderChannelCard('meituan', '美团', '价格', venue.name, actionAttribute)}
-                ${this.renderChannelCard('amap', '高德', '位置', venue.name, actionAttribute)}
+                ${this.renderChannelCard('dianping', '大众点评', '价格', venue.name, actionAttribute)}
               </div>
-              ${this.renderVenueCarousel(venues, activeIndex)}
-              <p class="helper-text">按住杯子左右拖动切换地点；点击渠道圆点粘贴链接。</p>
+              ${this.renderStep2InfoCard(venue, filterConditions)}
             </div>
           </section>
         `;
@@ -3598,6 +3675,58 @@
             <strong>${title}</strong>
           </button>
         `;
+      },
+
+      renderStep2InfoCard(venue, filterConditions = []) {
+        const image = venue.images?.[0] || '';
+        const rows = [
+          ['时间', venue.hours || '-'],
+          ['地点', venue.address || '-'],
+          ...filterConditions.map((condition) => [condition, this.getStep2ConditionValue(venue, condition)])
+        ];
+        return `
+          <article class="pick-step2-info-card" aria-label="当前场地信息">
+            <div class="pick-step2-image">
+              ${image ? `<img src="${UI.escape(image)}" alt="${UI.escape(venue.name)} 图片">` : '图片'}
+            </div>
+            <div class="pick-step2-info-list">
+              ${rows.map(([label, value]) => `
+                <div class="pick-step2-info-row">
+                  <strong>${UI.escape(label)}</strong>
+                  <span>${UI.escape(value || '-')}</span>
+                </div>
+              `).join('')}
+            </div>
+          </article>
+        `;
+      },
+
+      getStep2ConditionValue(venue, condition) {
+        if (condition === '价格') return StarManager.formatPrice(venue);
+        if (condition === '业态') return this.getMatchedVenueTerms(venue, ['纯咖啡', '日咖夜酒', '书店+咖啡', venue.sceneType]).join('、') || venue.sceneType || '-';
+        const optionsByCondition = {
+          '环境': ['安静', '禁烟', '靠窗', '老洋房', '露天位', '独立房间', '适合办公', '适合拍照', '绿植多'],
+          '设备': ['插座', '大桌', '音乐', '卫生间', '柠檬水', '可寄存'],
+          '美食': ['柠檬巴斯克', '咖啡', '茶', '甜点', '抹茶', '焙茶', '轻食'],
+          '周边': ['地铁', '停车', '商场', '公园', '学校', '五大道'],
+          '宠物': ['猫', '狗']
+        };
+        const matched = this.getMatchedVenueTerms(venue, optionsByCondition[condition] || []);
+        if (matched.length) return matched.join('、');
+        if (condition === '美食' && venue.menuInfo) return venue.menuInfo;
+        return '-';
+      },
+
+      getMatchedVenueTerms(venue, options = []) {
+        const text = [
+          venue.sceneType,
+          venue.menuInfo,
+          venue.membershipInfo,
+          venue.notes,
+          ...(venue.tags || []),
+          ...(venue.customTags || [])
+        ].join(' ');
+        return [...new Set(options.filter((option) => option && text.includes(option)))];
       },
 
       renderStep3(currentPick) {
@@ -3676,7 +3805,7 @@
         const checked = currentPick.confirmedVenueIds?.includes(venue.id);
         const allTags = [...venue.tags, ...venue.customTags];
         const copiedInfo = currentPick.copiedInfo?.[venue.id] || {};
-        const copiedCount = Object.values(copiedInfo).filter(Boolean).length;
+        const copiedCount = ['xiaohongshu', 'dianping'].filter((channel) => copiedInfo[channel]).length;
         return `
           <article class="result-card${matches.length ? '' : ' is-dimmed'}">
             <div class="result-card-head">
@@ -3692,7 +3821,7 @@
               ${misses.map((tag) => `<span class="tag is-muted">${UI.escape(tag)}</span>`).join('')}
             </div>
             <div class="result-actions">
-              <p class="venue-meta">已复制 ${copiedCount}/3 个渠道信息</p>
+              <p class="venue-meta">已复制 ${copiedCount}/2 个渠道信息</p>
               <button class="mini-btn is-primary" type="button" data-pick-action="save-result-star" data-id="${venue.id}">收藏到 Star</button>
             </div>
           </article>
@@ -4118,8 +4247,10 @@
         } else {
           console.warn('[PickPick] pick saveChannelLink extracted without saved venue', { venueId, channel });
         }
+        const statusText = AIExtractor.getExtractionStatus(link, changedFields);
         UI.closeModal();
-        UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
+        if (this.viewStep === 2) this.render();
+        UI.showStatus(statusText, 'success');
       },
 
       createDraftVenueForExtraction(venueId) {
