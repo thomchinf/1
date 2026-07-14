@@ -171,38 +171,121 @@ async function resolveXiaohongshuNote(payload, debug) {
   debug.noteApiCode = noteResult.json?.code;
   debug.noteApiMessage = noteResult.json?.message || noteResult.json?.msg || '';
 
-  const note = normalizeNoteDetail(noteResult.json, noteId);
+  const note = normalizeNoteDetail(noteResult.json, noteId, debug);
   const sourceText = normalizeNoteText(note, shareUrl);
   return { note, sourceText };
 }
 
-function normalizeNoteDetail(result, noteId) {
+function normalizeNoteDetail(result, noteId, debug = {}) {
   const data = result?.data || {};
+  debug.noteDataKeys = Object.keys(data || {}).slice(0, 30);
   const candidates = [
     data.note,
     data.noteInfo,
     data.note_info,
     data.noteDetail,
     data.note_detail,
+    data.data?.note,
+    data.data?.noteInfo,
+    data.data?.note_info,
+    data.data?.noteDetail,
+    data.data?.note_detail,
+    data.data?.note_list?.[0],
+    data.data?.notes?.[0],
+    data.data?.items?.[0],
+    data.data,
     data.note_list?.[0],
     data.notes?.[0],
     data.items?.[0],
-    data
+    data,
+    ...collectNoteCandidates(data)
   ].filter(Boolean);
 
-  const raw = candidates.find((item) => {
-    return item.title || item.desc || item.description || item.content || item.note_card || item.user || item.author;
-  }) || {};
-  const card = raw.note_card || raw.noteCard || {};
-  const user = raw.user || raw.user_info || raw.userInfo || card.user || card.user_info || {};
+  const raw = candidates.find(isNoteLikeObject) || {};
+  debug.noteCandidateCount = candidates.length;
+  debug.noteCandidateKeys = Object.keys(raw || {}).slice(0, 30);
+  const card = raw.note_card || raw.noteCard || raw.card || raw.note || raw.note_info || raw.noteInfo || {};
+  const user = raw.user || raw.user_info || raw.userInfo || raw.author || card.user || card.user_info || card.userInfo || {};
 
   return {
     noteId,
-    title: pickString(raw.title, card.title, raw.display_title, card.display_title),
-    desc: pickString(raw.desc, raw.description, raw.content, card.desc, card.description, card.content),
-    author: pickString(raw.author, raw.nickname, user.nickname, user.name),
-    ipLocation: pickString(raw.ipLocation, raw.ip_location, raw.ipLocationName, card.ipLocation, card.ip_location)
+    title: pickString(
+      raw.title,
+      raw.display_title,
+      raw.displayTitle,
+      raw.note_title,
+      raw.noteTitle,
+      card.title,
+      card.display_title,
+      card.displayTitle,
+      card.note_title,
+      card.noteTitle
+    ),
+    desc: pickString(
+      raw.desc,
+      raw.description,
+      raw.content,
+      raw.text,
+      raw.note_desc,
+      raw.noteDesc,
+      raw.desc_text,
+      card.desc,
+      card.description,
+      card.content,
+      card.text,
+      card.note_desc,
+      card.noteDesc
+    ),
+    author: pickString(
+      typeof raw.author === 'string' ? raw.author : '',
+      raw.nickname,
+      user.nickname,
+      user.name,
+      user.user_name,
+      user.userName
+    ),
+    ipLocation: pickString(
+      raw.ipLocation,
+      raw.ip_location,
+      raw.ipLocationName,
+      raw.ip_location_name,
+      card.ipLocation,
+      card.ip_location,
+      card.ipLocationName,
+      card.ip_location_name
+    )
   };
+}
+
+function collectNoteCandidates(value, output = [], seen = new Set()) {
+  if (!value || typeof value !== 'object' || seen.has(value) || output.length >= 80) return output;
+  seen.add(value);
+  if (isNoteLikeObject(value)) output.push(value);
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectNoteCandidates(item, output, seen));
+    return output;
+  }
+  Object.values(value).forEach((item) => collectNoteCandidates(item, output, seen));
+  return output;
+}
+
+function isNoteLikeObject(item) {
+  if (!item || typeof item !== 'object') return false;
+  return Boolean(
+    item.title ||
+    item.display_title ||
+    item.displayTitle ||
+    item.note_title ||
+    item.noteTitle ||
+    item.desc ||
+    item.description ||
+    item.content ||
+    item.text ||
+    item.note_desc ||
+    item.noteDesc ||
+    item.note_card ||
+    item.noteCard
+  );
 }
 
 function pickString(...values) {
@@ -247,9 +330,16 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
             'Extract one primary venue from the Xiaohongshu note.',
             'Return values in the same language as the source text.',
             'Use empty strings, empty arrays, or 0 for unknown fields.',
-            'tags should contain only explicit, reusable filter tags.',
-            'customTags should contain more specific venue features.',
-            'price.amount must be a number. price.unit should be a short unit from the source text.'
+            'Do not invent facts. Only fill fields supported by the source text.',
+            'Classify venue facts into these PickPick fields:',
+            'environment: only use explicit values like 安静, 禁烟, 靠窗.',
+            'device: only use explicit values like 插座, 大桌, 音乐, 卫生间.',
+            'food: food or drink names explicitly mentioned, such as 柠檬巴斯克, 抹茶拿铁.',
+            'business: venue business type, such as 纯咖啡, 日咖夜酒, 书店+咖啡.',
+            'pet: only use 猫 or 狗 when explicitly mentioned.',
+            'price.amount must be a number. price.unit should be a short unit from the source text.',
+            'price.text should keep the original price phrase when available.',
+            'tags and customTags are optional backward-compatible fields.'
           ].join('\n')
         },
         {
@@ -260,13 +350,18 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
                 name: '',
                 address: '',
                 hours: '',
-                price: { amount: 0, unit: '\u65e5' },
+                sceneType: '',
+                environment: [],
+                device: [],
+                food: [],
+                price: { amount: 0, unit: '', text: '' },
+                business: [],
+                pet: [],
                 tags: [],
                 customTags: [],
                 menuInfo: '',
                 membershipInfo: '',
-                notes: '',
-                sceneType: ''
+                notes: ''
               }
             },
             existingVenue: inputVenue || null,
@@ -293,16 +388,39 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
 
 function normalizeVenue(value = {}) {
   const price = value.price || {};
+  const environment = normalizeArray(value.environment || value.environments);
+  const device = normalizeArray(value.device || value.devices || value.equipment);
+  const food = normalizeArray(value.food || value.foods || value.menuItems || value.menu_items);
+  const business = normalizeArray(value.business || value.businessType || value.business_type || value.businesses);
+  const pet = normalizeArray(value.pet || value.pets);
+  const knownTagOptions = ['安静', '禁烟', '靠窗', '插座', '大桌', '音乐', '卫生间'];
+  const tags = uniqueArray([
+    ...normalizeArray(value.tags).filter((tag) => knownTagOptions.includes(tag)),
+    ...environment,
+    ...device
+  ]);
+  const customTags = uniqueArray([
+    ...normalizeArray(value.customTags || value.custom_tags),
+    ...food,
+    ...business,
+    ...pet
+  ]);
   return {
     name: String(value.name || '').trim(),
     address: String(value.address || '').trim(),
     hours: String(value.hours || '').trim(),
     price: {
       amount: Number(price.amount || 0),
-      unit: String(price.unit || '日').trim() || '日'
+      unit: String(price.unit || '').trim(),
+      text: String(price.text || value.priceText || value.price_text || '').trim()
     },
-    tags: normalizeArray(value.tags),
-    customTags: normalizeArray(value.customTags || value.custom_tags),
+    environment,
+    device,
+    food,
+    business,
+    pet,
+    tags,
+    customTags,
     menuInfo: String(value.menuInfo || value.menu_info || '').trim(),
     membershipInfo: String(value.membershipInfo || value.membership_info || '').trim(),
     notes: String(value.notes || '').trim(),
@@ -316,6 +434,10 @@ function normalizeArray(value) {
   return [];
 }
 
+function uniqueArray(values) {
+  return [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
 function hasVenueData(venue) {
   if (!venue) return false;
   return Boolean(
@@ -323,6 +445,12 @@ function hasVenueData(venue) {
     venue.address ||
     venue.hours ||
     Number(venue.price?.amount) ||
+    venue.price?.text ||
+    venue.environment?.length ||
+    venue.device?.length ||
+    venue.food?.length ||
+    venue.business?.length ||
+    venue.pet?.length ||
     venue.tags?.length ||
     venue.customTags?.length ||
     venue.menuInfo ||
