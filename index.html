@@ -674,6 +674,34 @@
       margin: 0 0 var(--space-2);
     }
 
+    .pick-step-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .pick-step-header h1 {
+      margin: 0 0 4px;
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 28px;
+      font-style: italic;
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .pick-step-header p {
+      max-width: 190px;
+      margin: 0;
+      color: #111111;
+      font-size: 10px;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+
     .pick-topbar {
       display: block;
     }
@@ -687,8 +715,11 @@
     .station-title,
     .select-title {
       color: var(--color-text);
-      font-size: 11px;
-      font-weight: 800;
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 14px;
+      font-style: italic;
+      font-weight: 700;
+      line-height: 1.2;
       text-transform: lowercase;
     }
 
@@ -752,24 +783,37 @@
 
     .date-picker {
       display: grid;
-      gap: var(--space-2);
+      gap: 6px;
     }
 
     .date-month-controls {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-2);
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: -30px;
+      margin-bottom: 2px;
+      padding-right: 2px;
     }
 
-    .date-month-controls select {
-      min-height: 34px;
-      border: 1px solid #111111;
-      border-radius: 0;
-      background: transparent;
+    .date-month-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       color: #111111;
-      padding: 5px 8px;
-      font-size: 12px;
-      font-weight: 800;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .date-month-control select {
+      width: auto;
+      min-height: 20px;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: #111111;
+      padding: 0 8px;
+      font-size: 10px;
+      font-weight: 700;
     }
 
     .date-strip::-webkit-scrollbar {
@@ -842,8 +886,11 @@
     .weather-card strong {
       display: block;
       margin-bottom: var(--space-2);
-      font-size: 11px;
-      font-weight: 800;
+      font-family: "Segoe Script", "Brush Script MT", cursive;
+      font-size: 14px;
+      font-style: italic;
+      font-weight: 700;
+      line-height: 1.2;
       text-transform: lowercase;
     }
 
@@ -876,7 +923,7 @@
 
     .station-actions {
       display: grid;
-      grid-template-columns: 28px minmax(0, 1fr);
+      grid-template-columns: 1fr;
       gap: var(--space-2);
       align-items: center;
     }
@@ -1165,12 +1212,12 @@
     .star-cup-card {
       display: grid;
       place-items: center;
-      min-height: 218px;
-      border: 1px solid var(--color-line);
-      border-radius: var(--radius-card);
-      background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-soft) 100%);
-      padding: var(--space-4);
-      box-shadow: var(--shadow-card);
+      min-height: 156px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0;
+      box-shadow: none;
     }
 
     .star12-actions {
@@ -1190,44 +1237,87 @@
     }
 
     .channel-orbit.is-star12 {
+      width: 100%;
+      max-width: 260px;
+      justify-self: center;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--space-2);
+      gap: 0;
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: 8px;
+      background: var(--color-surface);
+      padding: 0;
+      box-shadow: 0 10px 24px rgba(63, 74, 53, 0.06);
+    }
+
+    .channel-orbit.is-star12 .channel-dot {
+      min-height: 52px;
+      justify-items: center;
+      gap: 4px;
+      border-right: 1px solid var(--color-line);
+      background: rgba(255, 253, 248, 0.72);
+      padding: 8px 6px;
+    }
+
+    .channel-orbit.is-star12 .channel-dot:last-child {
+      border-right: 0;
+    }
+
+    .channel-orbit.is-star12 .channel-dot em {
+      width: 16px;
+      height: 16px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .channel-orbit.is-star12 .channel-dot em::before {
+      display: block;
+      color: var(--color-primary-dark);
+      font-size: 15px;
+      line-height: 16px;
+      content: "⌘";
+    }
+
+    .channel-orbit.is-star12 .channel-dot strong {
+      font-size: 10px;
     }
 
     .star-cup {
       position: relative;
-      width: 190px;
-      height: 156px;
+      width: 142px;
+      height: 128px;
       color: var(--color-primary-dark);
       text-align: center;
     }
 
     .star-cup::before {
       position: absolute;
-      left: 42px;
-      right: 42px;
-      top: 18px;
-      bottom: 8px;
+      left: 22px;
+      right: 22px;
+      top: 6px;
+      bottom: 0;
       border: 1.5px solid var(--color-primary-dark);
-      border-radius: 26px 26px 36px 36px;
+      border-radius: 32px 32px 40px 40px;
       background: rgba(255, 253, 248, 0.52);
       content: "";
     }
 
     .star-cup::after {
       position: absolute;
-      left: 16px;
-      right: 16px;
-      top: 50px;
+      left: 0;
+      right: 0;
+      top: 48px;
       border-top: 1px solid rgba(63, 74, 53, 0.58);
       content: "";
     }
 
     .star-cup-name {
       position: absolute;
-      left: 34px;
-      right: 34px;
-      top: 88px;
+      left: 32px;
+      right: 32px;
+      top: 78px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1239,7 +1329,7 @@
     .star-cup-logo {
       position: absolute;
       left: 50%;
-      top: 30px;
+      top: 22px;
       transform: translateX(-50%);
       color: var(--color-muted);
       font-size: 10px;
@@ -1297,6 +1387,30 @@
       min-width: 0;
       overflow-wrap: anywhere;
       color: var(--color-muted);
+    }
+
+    .star-info-input {
+      width: 100%;
+      min-height: 24px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--color-muted);
+      padding: 0;
+      font-size: 12px;
+      line-height: 1.45;
+      box-shadow: none;
+    }
+
+    .star-info-input:focus {
+      background: rgba(255, 253, 248, 0.76);
+      box-shadow: 0 0 0 2px rgba(227, 111, 69, 0.12);
+      padding: 2px 6px;
+    }
+
+    textarea.star-info-input {
+      min-height: 52px;
+      resize: vertical;
     }
 
     .source-info-panel {
@@ -2417,6 +2531,7 @@
         document.getElementById('tab-star').addEventListener('click', (event) => this.handleClick(event));
         document.getElementById('tab-star').addEventListener('input', (event) => this.handleInput(event));
         document.getElementById('tab-star').addEventListener('change', (event) => this.handleChange(event));
+        document.getElementById('tab-star').addEventListener('submit', (event) => this.handleSubmit(event));
         document.getElementById('modal-container').addEventListener('click', (event) => this.handleModalClick(event));
         document.getElementById('modal-container').addEventListener('submit', (event) => this.handleSubmit(event));
       },
@@ -2561,6 +2676,27 @@
         return matched.join('、') || '-';
       },
 
+      getVenueFieldEditValue(venue, key) {
+        if (key === 'price') {
+          const amount = Number(venue.price?.amount) || 0;
+          return amount > 0 ? String(amount) : '';
+        }
+        const value = this.getVenueFieldValue(venue, key);
+        return value === '-' ? '' : value;
+      },
+
+      getCategoryOptions() {
+        return this.getStarFilterGroups()
+          .filter((group) => group.key !== 'price')
+          .flatMap((group) => group.options);
+      },
+
+      getUncategorizedTags(venue) {
+        const categoryOptions = new Set(this.getCategoryOptions());
+        return [...(venue.tags || []), ...(venue.customTags || [])]
+          .filter((tag) => tag && !categoryOptions.has(tag));
+      },
+
       getVenueInfoRows(venue) {
         return [
           ['名称', venue.name || '-'],
@@ -2575,6 +2711,36 @@
           ['宠物', this.getVenueFieldValue(venue, 'pet')],
           ['备注', venue.notes || '-']
         ];
+      },
+
+      readStep12Form(venue) {
+        const form = document.getElementById('star-step12-form');
+        if (!form) return venue;
+        const formData = new FormData(form);
+        const readText = (name) => String(formData.get(name) || '').trim();
+        const environment = this.parseTags(readText('environment'));
+        const device = this.parseTags(readText('device'));
+        const food = this.parseTags(readText('food'));
+        const business = this.parseTags(readText('business'));
+        const pet = this.parseTags(readText('pet'));
+        const amountText = readText('priceAmount');
+        const amountMatch = amountText.match(/\d+(\.\d+)?/);
+        const priceAmount = amountMatch ? Number(amountMatch[0]) : 0;
+        const uncategorizedTags = this.getUncategorizedTags(venue);
+        return {
+          ...venue,
+          name: readText('name') || venue.name,
+          address: readText('address'),
+          hours: readText('hours'),
+          sceneType: readText('sceneType') || '其他',
+          tags: [...new Set([...environment, ...device])],
+          customTags: [...new Set([...uncategorizedTags, ...food, ...business, ...pet])],
+          price: {
+            amount: priceAmount,
+            unit: venue.price?.unit || '杯'
+          },
+          notes: readText('notes')
+        };
       },
 
       matchesStarFilters(venue) {
@@ -2632,6 +2798,11 @@
       },
 
       async handleSubmit(event) {
+        if (event.target.id === 'star-step12-form') {
+          event.preventDefault();
+          this.confirmStep12();
+          return;
+        }
         if (event.target.id === 'channel-link-form') {
           event.preventDefault();
           const formData = new FormData(event.target);
@@ -3065,9 +3236,21 @@
       confirmStep12() {
         const venue = this.getStep12Venue();
         if (!venue) return;
+        const nextVenue = this.readStep12Form(venue);
+        if (!nextVenue.name.trim()) {
+          UI.showStatus('请先填写名称。');
+          return;
+        }
         if (this.step12Draft) {
           const venues = Storage.loadVenues();
-          if (!Storage.saveVenues([this.step12Draft, ...venues])) return;
+          const existingIndex = venues.findIndex((item) => item.id === nextVenue.id);
+          const nextVenues = existingIndex >= 0
+            ? venues.map((item) => (item.id === nextVenue.id ? nextVenue : item))
+            : [nextVenue, ...venues];
+          if (!Storage.saveVenues(nextVenues)) return;
+        } else {
+          const venues = Storage.loadVenues();
+          if (!Storage.saveVenues(venues.map((item) => (item.id === nextVenue.id ? nextVenue : item)))) return;
         }
         this.goStep1();
         UI.showStatus('已保存到 Star 库。', 'success');
@@ -3161,21 +3344,60 @@
 
       renderStep12Info(venue) {
         const image = venue.images?.[0] || '';
-        const infoRows = this.getVenueInfoRows(venue);
         return `
-          <div class="star-info-panel" aria-label="场地补充信息">
+          <form id="star-step12-form" class="star-info-panel" aria-label="场地补充信息">
             <div class="star-info-image">
               ${image ? `<img src="${UI.escape(image)}" alt="${UI.escape(venue.name)} 图片">` : '图片'}
             </div>
             <div class="star-info-list">
-              ${infoRows.map(([label, value]) => `
-                <div class="star-info-row">
-                  <strong>${UI.escape(label)}</strong>
-                  <span>${UI.escape(value)}</span>
-                </div>
-              `).join('')}
+              <label class="star-info-row">
+                <strong>名称</strong>
+                <input class="star-info-input" name="name" value="${UI.escape(venue.name || '')}">
+              </label>
+              <label class="star-info-row">
+                <strong>地点</strong>
+                <input class="star-info-input" name="address" value="${UI.escape(venue.address || '')}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>时间</strong>
+                <input class="star-info-input" name="hours" value="${UI.escape(venue.hours || '')}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>场景</strong>
+                <select class="star-info-input" name="sceneType">
+                  ${['自习室', '咖啡馆', '其他'].map((scene) => `<option value="${scene}" ${venue.sceneType === scene ? 'selected' : ''}>${scene}</option>`).join('')}
+                </select>
+              </label>
+              <label class="star-info-row">
+                <strong>环境</strong>
+                <input class="star-info-input" name="environment" value="${UI.escape(this.getVenueFieldEditValue(venue, 'environment'))}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>设备</strong>
+                <input class="star-info-input" name="device" value="${UI.escape(this.getVenueFieldEditValue(venue, 'device'))}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>美食</strong>
+                <input class="star-info-input" name="food" value="${UI.escape(this.getVenueFieldEditValue(venue, 'food'))}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>价格</strong>
+                <input class="star-info-input" name="priceAmount" value="${UI.escape(this.getVenueFieldEditValue(venue, 'price'))}" placeholder="价格待补充">
+              </label>
+              <label class="star-info-row">
+                <strong>业态</strong>
+                <input class="star-info-input" name="business" value="${UI.escape(this.getVenueFieldEditValue(venue, 'business'))}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>宠物</strong>
+                <input class="star-info-input" name="pet" value="${UI.escape(this.getVenueFieldEditValue(venue, 'pet'))}" placeholder="-">
+              </label>
+              <label class="star-info-row">
+                <strong>备注</strong>
+                <textarea class="star-info-input" name="notes" rows="3" placeholder="-">${UI.escape(venue.notes || '')}</textarea>
+              </label>
             </div>
-          </div>
+          </form>
         `;
       },
 
@@ -3207,7 +3429,6 @@
                 ${PickManager.renderChannelCard('dianping', '大众点评', '价格', venue.name, 'data-action')}
               </div>
               ${this.renderStep12Info(venue)}
-              ${this.renderSourceInfo(venue)}
             </div>
           </section>
         `;
@@ -3267,30 +3488,40 @@
 
       renderStep1(currentPick) {
         const selectedVenues = this.getSelectedVenues(currentPick);
-        const allConditions = [...DEFAULT_FILTERS, ...currentPick.customConditions];
+        const allConditions = this.getStep1Conditions();
+        const visibleFilterConditions = currentPick.filterConditions.filter((condition) => allConditions.includes(condition));
+        if (visibleFilterConditions.length !== currentPick.filterConditions.length) {
+          Storage.saveCurrentPick({ ...currentPick, filterConditions: visibleFilterConditions });
+          currentPick.filterConditions = visibleFilterConditions;
+        }
         const canGoStep2 = selectedVenues.length >= 2;
         document.getElementById('tab-pick').innerHTML = `
-          ${UI.renderHeader({ id: 'pick-title', text: 'pick' })}
+          <div class="pick-step-header">
+            <div>
+              <h1 id="pick-title">PICK</h1>
+              <p>Date, start point, weather and candidates.</p>
+            </div>
+            <button class="pick-arrow-btn" type="button" data-pick-action="go-step-2" aria-label="进入 2.2" ${canGoStep2 ? '' : 'disabled'}>→</button>
+          </div>
           <section class="panel pick-board">
             <div class="pick-step">
+              ${this.renderDateStrip(currentPick)}
               <div class="pick-topbar">
                 <div class="pick-location">
                   <input id="pick-location-input" name="userLocation" value="${UI.escape(currentPick.userLocation)}" placeholder="输入出发位置" data-pick-field="userLocation">
                 </div>
               </div>
-              ${this.renderDateStrip(currentPick)}
               ${this.renderWeather(currentPick)}
               <div class="pick-columns">
                 <section class="station-panel">
-                  <div class="station-title">station</div>
+                  <div class="station-title">candidates</div>
                   <div class="station-actions">
-                    <button class="station-add-btn" type="button" data-pick-action="open-star-picker">+</button>
-                    <button class="station-step-btn" type="button" data-pick-action="go-step-2" ${canGoStep2 ? '' : 'disabled'}>进入信息复制</button>
+                    <button class="station-add-btn" type="button" data-pick-action="open-star-picker">Add new +</button>
                   </div>
                   ${this.renderSelectedVenues(selectedVenues)}
                 </section>
                 <section class="select-panel">
-                  <div class="select-title">select</div>
+                  <div class="select-title">conditions</div>
                   <div class="condition-grid">
                     ${allConditions.map((condition) => `
                       <label class="condition-pill">
@@ -3299,19 +3530,19 @@
                       </label>
                     `).join('')}
                   </div>
-                  <div class="custom-condition-form">
-                    <input id="custom-condition-input" placeholder="+ 条件">
-                    <button class="mini-btn is-primary" type="button" data-pick-action="add-condition">+</button>
-                  </div>
                 </section>
               </div>
               <div class="step-footer">
-                <p class="helper-text">${canGoStep2 ? '可以进入复制信息步骤。' : '至少选择 2 个场地后才能进入下一步。'}</p>
+                <p class="helper-text">${canGoStep2 ? '点击右上角箭头进入下一步。' : '至少选择 2 个场地后才能进入下一步。'}</p>
               </div>
             </div>
           </section>
         `;
         WeatherService.ensureWeather(currentPick);
+      },
+
+      getStep1Conditions() {
+        return ['环境', '设备', '美食', '价格', '业态', '周边', '宠物'];
       },
 
       renderStep2(currentPick) {
@@ -3507,6 +3738,7 @@
         const selectedMonth = selectedDate.getMonth();
         const dayCount = new Date(selectedYear, selectedMonth + 1, 0).getDate();
         const years = this.getYearOptions(selectedYear);
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         const days = Array.from({ length: dayCount }, (_, index) => {
             const date = new Date(selectedYear, selectedMonth, index + 1);
             return date;
@@ -3514,15 +3746,21 @@
         return `
           <div class="date-picker">
             <div class="date-month-controls" aria-label="年月选择">
-              <select data-date-part="year" aria-label="选择年份">
-                ${years.map((year) => `<option value="${year}" ${year === selectedYear ? 'selected' : ''}>${year}年</option>`).join('')}
-              </select>
-              <select data-date-part="month" aria-label="选择月份">
-                ${Array.from({ length: 12 }, (_, index) => {
-                  const month = index + 1;
-                  return `<option value="${month}" ${index === selectedMonth ? 'selected' : ''}>${month}月</option>`;
-                }).join('')}
-              </select>
+              <label class="date-month-control">
+                <select data-date-part="year" aria-label="选择年份">
+                  ${years.map((year) => `<option value="${year}" ${year === selectedYear ? 'selected' : ''}>${year}</option>`).join('')}
+                </select>
+                <span>年</span>
+              </label>
+              <label class="date-month-control">
+                <select data-date-part="month" aria-label="选择月份">
+                  ${Array.from({ length: 12 }, (_, index) => {
+                    const month = index + 1;
+                    return `<option value="${month}" ${index === selectedMonth ? 'selected' : ''}>${monthNames[index]}</option>`;
+                  }).join('')}
+                </select>
+                <span>月</span>
+              </label>
             </div>
             <div class="date-strip" aria-label="日期选择">
               ${days.map((date) => {
@@ -3620,9 +3858,11 @@
         const condition = event.target.dataset.condition;
         if (!condition) return;
         const currentPick = Storage.loadCurrentPick();
+        const visibleConditions = this.getStep1Conditions();
+        const currentVisibleConditions = currentPick.filterConditions.filter((item) => visibleConditions.includes(item));
         const nextConditions = event.target.checked
-          ? [...new Set([...currentPick.filterConditions, condition])]
-          : currentPick.filterConditions.filter((item) => item !== condition);
+          ? [...new Set([...currentVisibleConditions, condition])]
+          : currentVisibleConditions.filter((item) => item !== condition);
         this.updateCurrentPick({ filterConditions: nextConditions }, false);
       },
 
