@@ -1,0 +1,2 @@
+# No external Python dependencies.
+# app.py uses only the Python standard library.

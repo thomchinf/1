@@ -1211,6 +1211,7 @@
         radial-gradient(circle at 50% 62%, rgba(255, 253, 248, 0.46) 0 54px, transparent 55px),
         linear-gradient(180deg, #F7F1E8 0 44%, #EEE3D3 44% 100%);
       cursor: grab;
+      touch-action: pan-y;
       user-select: none;
     }
 
@@ -1445,6 +1446,44 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
+    }
+
+    .star-info-image.is-gallery,
+    .pick-step2-image.is-gallery {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+    }
+
+    .image-gallery-item {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 10px;
+      background: var(--color-surface-soft);
+    }
+
+    .star-info-image.is-gallery .image-gallery-item,
+    .pick-step2-image.is-gallery .image-gallery-item {
+      flex: 0 0 88%;
+      min-width: 88%;
+      height: 100%;
+      scroll-snap-align: start;
+    }
+
+    .image-gallery-item.is-hidden {
+      display: none;
+    }
+
+    .image-gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .star-info-list {
@@ -1470,6 +1509,31 @@
       min-width: 0;
       overflow-wrap: anywhere;
       color: var(--color-muted);
+    }
+
+    .poi-candidate-list {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .poi-candidate-btn {
+      display: grid;
+      gap: 4px;
+      width: 100%;
+      min-height: auto;
+      padding: 12px;
+      text-align: left;
+    }
+
+    .poi-candidate-btn strong {
+      color: var(--color-text);
+      font-size: 14px;
+    }
+
+    .poi-candidate-btn span {
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.4;
     }
 
     .star-info-input {
@@ -2759,6 +2823,7 @@
       viewStep: 1,
       activeVenueId: '',
       step12Draft: null,
+      pendingPoiSelection: null,
 
       init() {
         document.getElementById('tab-star').addEventListener('click', (event) => this.handleClick(event));
@@ -3016,7 +3081,7 @@
           this.openChannel(trigger.dataset.channel, trigger.dataset.query);
           return;
         }
-        this.runAction(trigger.dataset.action, trigger.dataset.id);
+        this.runAction(trigger.dataset.action, trigger.dataset.id, trigger);
       },
 
       handleModalClick(event) {
@@ -3034,7 +3099,7 @@
           PickManager.openStarPickerList();
           return;
         }
-        this.runAction(trigger.dataset.action, trigger.dataset.id);
+        this.runAction(trigger.dataset.action, trigger.dataset.id, trigger);
       },
 
       async handleSubmit(event) {
@@ -3066,13 +3131,14 @@
         this.saveFromForm(event.target);
       },
 
-      runAction(action, id) {
+      runAction(action, id, trigger = null) {
         const actions = {
           'new-venue': () => this.openForm(),
           'edit-venue': () => this.openForm(id),
           'detail-venue': () => this.openDetail(id),
           'delete-venue': () => this.deleteVenue(id),
           'add-to-pick': () => this.addToPick(id),
+          'apply-poi-candidate': () => this.applyPoiCandidate(trigger?.dataset.index),
           'back-star-list': () => this.goStep1(),
           'confirm-star-info': () => this.confirmStep12(),
           'clear-star-info': () => this.clearStep12Info(),
@@ -3437,11 +3503,30 @@
             venue: baseDraft,
             context: 'star'
           });
-          const nextDraft = AIExtractor.applyToVenue(baseDraft, link, extraction.venue);
+          const extractedDraft = AIExtractor.applyToVenue(baseDraft, link, extraction.venue);
+          const enrichedDraft = await BackendClient.enrichVenueWithPoi({
+            baseVenue: baseDraft,
+            venue: extractedDraft,
+            rawText: link,
+            extraction,
+            channel
+          });
+          const nextDraft = enrichedDraft.venue;
           const changedFields = AIExtractor.getChangedFields(baseDraft, nextDraft);
           this.step12Draft = {
             ...nextDraft
           };
+          if (enrichedDraft.poiCandidates.length) {
+            this.renderStep12();
+            this.showPoiCandidates({
+              owner: 'star',
+              venueId,
+              baseVenue: baseDraft,
+              candidates: enrichedDraft.poiCandidates
+            });
+            UI.showStatus(`${AIExtractor.getExtractionStatus(link, changedFields)}；请选择高德地点。`, 'success');
+            return;
+          }
           UI.closeModal();
           UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
           this.renderStep12();
@@ -3466,12 +3551,92 @@
           venue: baseVenue,
           context: 'star'
         });
-        const nextVenue = AIExtractor.applyToVenue(baseVenue, link, extraction.venue);
+        const extractedVenue = AIExtractor.applyToVenue(baseVenue, link, extraction.venue);
+        const enrichedVenue = await BackendClient.enrichVenueWithPoi({
+          baseVenue,
+          venue: extractedVenue,
+          rawText: link,
+          extraction,
+          channel
+        });
+        const nextVenue = enrichedVenue.venue;
         const changedFields = AIExtractor.getChangedFields(baseVenue, nextVenue);
         if (!Storage.saveVenues(venues.map((item) => (item.id === venueId ? nextVenue : item)))) return;
+        if (enrichedVenue.poiCandidates.length) {
+          this.renderStep12();
+          this.showPoiCandidates({
+            owner: 'star',
+            venueId,
+            baseVenue,
+            candidates: enrichedVenue.poiCandidates
+          });
+          UI.showStatus(`${AIExtractor.getExtractionStatus(link, changedFields)}；请选择高德地点。`, 'success');
+          return;
+        }
         UI.closeModal();
         UI.showStatus(AIExtractor.getExtractionStatus(link, changedFields), 'success');
         this.renderStep12();
+      },
+
+      showPoiCandidates({ owner, venueId, baseVenue, candidates = [] }) {
+        this.pendingPoiSelection = {
+          owner,
+          venueId,
+          baseVenue,
+          candidates
+        };
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">高德地点</p>
+              <h2 class="modal-title">选择匹配店铺</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <div class="poi-candidate-list">
+            ${candidates.map((poi, index) => `
+              <button class="secondary-btn poi-candidate-btn" type="button" data-action="apply-poi-candidate" data-index="${index}">
+                <strong>${UI.escape(poi.name || '未命名店铺')}</strong>
+                <span>${UI.escape([poi.cityname, poi.adname, poi.address].filter(Boolean).join('') || '地址待补充')}</span>
+                <span>${UI.escape([
+                  poi.openTime || '',
+                  poi.cost ? `人均${poi.cost}元` : '',
+                  poi.rating ? `评分${poi.rating}` : ''
+                ].filter(Boolean).join(' · ') || '信息待补充')}</span>
+              </button>
+            `).join('')}
+          </div>
+        `);
+      },
+
+      applyPoiCandidate(index) {
+        const selection = this.pendingPoiSelection;
+        const poi = selection?.candidates?.[Number(index)];
+        if (!selection || !poi) return;
+        const poiVenue = BackendClient.poiToVenue(poi);
+        if (selection.owner === 'star' && this.step12Draft?.id === selection.venueId) {
+          const nextDraft = AIExtractor.applyPoiToVenue(selection.baseVenue, this.step12Draft, poiVenue);
+          this.step12Draft = nextDraft;
+          this.pendingPoiSelection = null;
+          UI.closeModal();
+          this.renderStep12();
+          UI.showStatus('已应用高德店铺信息。', 'success');
+          return;
+        }
+
+        const venues = Storage.loadVenues();
+        const venue = venues.find((item) => item.id === selection.venueId);
+        if (!venue) return;
+        const nextVenue = AIExtractor.applyPoiToVenue(selection.baseVenue || venue, venue, poiVenue);
+        if (!Storage.saveVenues(venues.map((item) => (item.id === selection.venueId ? nextVenue : item)))) return;
+        this.pendingPoiSelection = null;
+        UI.closeModal();
+        if (selection.owner === 'pick') {
+          PickManager.render();
+        } else {
+          this.renderStep12();
+        }
+        UI.showStatus('已应用高德店铺信息。', 'success');
       },
 
       confirmStep12() {
@@ -3584,11 +3749,11 @@
       },
 
       renderStep12Info(venue) {
-        const image = venue.images?.[0] || '';
+        const images = this.getRenderableImages(venue.images || []);
         return `
           <form id="star-step12-form" class="star-info-panel" aria-label="场地补充信息">
-            <div class="star-info-image">
-              ${image ? `<img src="${UI.escape(image)}" alt="${UI.escape(venue.name)} 图片">` : '图片'}
+            <div class="star-info-image${images.length > 1 ? ' is-gallery' : ''}">
+              ${this.renderImageGallery(images, venue.name)}
             </div>
             <div class="star-info-list">
               <label class="star-info-row">
@@ -3642,6 +3807,27 @@
         `;
       },
 
+      getRenderableImages(images = []) {
+        return [...new Set(images.map((image) => {
+          const text = String(image || '').trim();
+          if (/^data:image\//i.test(text)) return text;
+          if (!/^https?:\/\//i.test(text)) return '';
+          try {
+            return new URL(text).toString();
+          } catch (error) {
+            return '';
+          }
+        }).filter(Boolean))];
+      },
+
+      renderImageGallery(images = [], name = '') {
+        const renderableImages = this.getRenderableImages(images);
+        if (!renderableImages.length) return '图片';
+        return renderableImages.map((image, index) => (
+          `<span class="image-gallery-item"><img src="${UI.escape(image)}" alt="${UI.escape(name)} 图片 ${index + 1}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.closest('.image-gallery-item')?.classList.add('is-hidden')"></span>`
+        )).join('');
+      },
+
       renderStep12() {
         const venue = this.getStep12Venue();
         if (!venue) {
@@ -3688,6 +3874,8 @@
         suppressClick: false
       },
       cupDrag: {
+        carousel: null,
+        pointerId: null,
         startX: 0,
         lastX: 0,
         moved: false,
@@ -3706,8 +3894,11 @@
         pickTab.addEventListener('pointercancel', () => this.cancelDateDrag());
         pickTab.addEventListener('pointerdown', (event) => this.handleCupPointerDown(event));
         pickTab.addEventListener('pointermove', (event) => this.handleCupPointerMove(event));
-        pickTab.addEventListener('pointerup', () => this.endCupDrag());
-        pickTab.addEventListener('pointercancel', () => this.cancelCupDrag());
+        pickTab.addEventListener('pointerup', (event) => this.endCupDrag(event));
+        pickTab.addEventListener('pointercancel', (event) => this.cancelCupDrag(event));
+        window.addEventListener('pointermove', (event) => this.handleCupPointerMove(event));
+        window.addEventListener('pointerup', (event) => this.endCupDrag(event));
+        window.addEventListener('pointercancel', (event) => this.cancelCupDrag(event));
       },
 
       render() {
@@ -3851,16 +4042,17 @@
       },
 
       renderStep2InfoCard(venue, filterConditions = []) {
-        const image = venue.images?.[0] || '';
+        const images = StarManager.getRenderableImages(venue.images || []);
+        const visibleConditions = [...new Set(filterConditions)];
         const rows = [
           ['时间', venue.hours || '-'],
           ['地点', venue.address || '-'],
-          ...filterConditions.map((condition) => [condition, this.getStep2ConditionValue(venue, condition)])
+          ...visibleConditions.map((condition) => [condition, this.getStep2ConditionValue(venue, condition)])
         ];
         return `
           <article class="pick-step2-info-card" aria-label="当前场地信息">
-            <div class="pick-step2-image">
-              ${image ? `<img src="${UI.escape(image)}" alt="${UI.escape(venue.name)} 图片">` : '图片'}
+            <div class="pick-step2-image${images.length > 1 ? ' is-gallery' : ''}">
+              ${StarManager.renderImageGallery(images, venue.name)}
             </div>
             <div class="pick-step2-info-list">
               ${rows.map(([label, value]) => `
@@ -3877,6 +4069,11 @@
       getStep2ConditionValue(venue, condition) {
         if (condition === '价格') return StarManager.formatPrice(venue);
         if (condition === '业态') return this.getMatchedVenueTerms(venue, ['纯咖啡', '日咖夜酒', '书店+咖啡', venue.sceneType]).join('、') || venue.sceneType || '-';
+        if (condition === '美食') {
+          if (Array.isArray(venue.food) && venue.food.length) return venue.food.join('、');
+          if (venue.menuInfo) return venue.menuInfo;
+          return '-';
+        }
         const optionsByCondition = {
           '环境': ['安静', '禁烟', '靠窗', '老洋房', '露天位', '独立房间', '适合办公', '适合拍照', '绿植多'],
           '设备': ['插座', '大桌', '音乐', '卫生间', '柠檬水', '可寄存'],
@@ -3886,7 +4083,6 @@
         };
         const matched = this.getMatchedVenueTerms(venue, optionsByCondition[condition] || []);
         if (matched.length) return matched.join('、');
-        if (condition === '美食' && venue.menuInfo) return venue.menuInfo;
         return '-';
       },
 
@@ -4274,7 +4470,11 @@
         const carousel = event.target.closest('[data-cup-carousel]');
         if (!carousel) return;
         const row = carousel.querySelector('.venue-cup-row');
+        const currentPick = Storage.loadCurrentPick();
+        if (this.getSelectedVenues(currentPick).length < 2) return;
         this.cupDrag = {
+          carousel,
+          pointerId: event.pointerId,
           startX: event.clientX,
           lastX: event.clientX,
           moved: false,
@@ -4283,48 +4483,71 @@
         };
         carousel.classList.add('is-dragging');
         carousel.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
       },
 
       handleCupPointerMove(event) {
         if (!this.cupDrag.active) return;
+        if (this.cupDrag.pointerId !== null && event.pointerId !== this.cupDrag.pointerId) return;
         const deltaX = event.clientX - this.cupDrag.startX;
         this.cupDrag.lastX = event.clientX;
-        if (Math.abs(deltaX) > 32) this.cupDrag.moved = true;
+        if (Math.abs(deltaX) > 24) this.cupDrag.moved = true;
         if (this.cupDrag.row) {
           const clampedDelta = Math.max(-120, Math.min(120, deltaX));
           this.cupDrag.row.style.transform = `translateX(${clampedDelta}px)`;
         }
+        if (this.cupDrag.moved) event.preventDefault();
       },
 
-      endCupDrag() {
-        const carousel = document.querySelector('[data-cup-carousel]');
+      endCupDrag(event = null) {
+        if (event && this.cupDrag.pointerId !== null && event.pointerId !== this.cupDrag.pointerId) return;
+        const carousel = this.cupDrag.carousel || document.querySelector('[data-cup-carousel]');
         if (carousel) carousel.classList.remove('is-dragging');
         if (!this.cupDrag.active) return;
         const currentPick = Storage.loadCurrentPick();
-        const selectedCount = currentPick.selectedVenueIds.length;
+        const selectedCount = this.getSelectedVenues(currentPick).length;
         const deltaX = this.cupDrag.lastX - this.cupDrag.startX;
         const row = this.cupDrag.row;
         if (row) {
           row.style.transition = 'transform 0.22s ease';
-          row.style.transform = this.cupDrag.moved && selectedCount > 1
+          row.style.transform = this.cupDrag.moved && Math.abs(deltaX) > 36 && selectedCount > 1
             ? `translateX(${deltaX < 0 ? -226 : 226}px)`
             : 'translateX(0)';
         }
-        if (this.cupDrag.moved && selectedCount > 1) {
+        if (this.cupDrag.moved && Math.abs(deltaX) > 36 && selectedCount > 1) {
           const direction = deltaX < 0 ? 1 : -1;
           const nextIndex = (currentPick.activeVenueIndex + direction + selectedCount) % selectedCount;
           window.setTimeout(() => {
             this.updateCurrentPick({ activeVenueIndex: nextIndex });
-          }, 180);
+          }, 140);
+        }
+        if (carousel && this.cupDrag.pointerId !== null) {
+          try {
+            carousel.releasePointerCapture?.(this.cupDrag.pointerId);
+          } catch (error) {}
         }
         this.cupDrag.active = false;
       },
 
-      cancelCupDrag() {
-        const carousel = document.querySelector('[data-cup-carousel]');
+      cancelCupDrag(event = null) {
+        if (event && this.cupDrag.pointerId !== null && event.pointerId !== this.cupDrag.pointerId) return;
+        const carousel = this.cupDrag.carousel || document.querySelector('[data-cup-carousel]');
         if (carousel) carousel.classList.remove('is-dragging');
         if (this.cupDrag.row) this.cupDrag.row.style.transform = 'translateX(0)';
-        this.cupDrag.active = false;
+        if (carousel && this.cupDrag.pointerId !== null) {
+          try {
+            carousel.releasePointerCapture?.(this.cupDrag.pointerId);
+          } catch (error) {}
+        }
+        this.cupDrag = {
+          carousel: null,
+          pointerId: null,
+          startX: 0,
+          lastX: 0,
+          moved: false,
+          active: false,
+          row: null
+        };
       },
 
       updateCurrentPick(patch, shouldRender = true) {
@@ -4420,7 +4643,31 @@
         });
         let changedFields = [];
         if (venues.some((item) => item.id === venueId)) {
-          changedFields = AIExtractor.saveExtractedVenue(venue, link, venues, extraction.venue);
+          const extractedVenue = AIExtractor.applyToVenue(venue, link, extraction.venue);
+          const enrichedVenue = await BackendClient.enrichVenueWithPoi({
+            baseVenue: venue,
+            venue: extractedVenue,
+            rawText: link,
+            extraction,
+            channel
+          });
+          const nextVenue = enrichedVenue.venue;
+          changedFields = AIExtractor.getChangedFields(venue, nextVenue);
+          if (JSON.stringify(venue) !== JSON.stringify(nextVenue)) {
+            Storage.saveVenues(venues.map((item) => (item.id === venue.id ? nextVenue : item)));
+          }
+          if (enrichedVenue.poiCandidates.length) {
+            UI.closeModal();
+            if (this.viewStep === 2) this.render();
+            StarManager.showPoiCandidates({
+              owner: 'pick',
+              venueId,
+              baseVenue: venue,
+              candidates: enrichedVenue.poiCandidates
+            });
+            UI.showStatus(`${AIExtractor.getExtractionStatus(link, changedFields)}；请选择高德地点。`, 'success');
+            return;
+          }
         } else {
           console.warn('[PickPick] pick saveChannelLink extracted without saved venue', { venueId, channel });
         }
@@ -5173,16 +5420,19 @@
           };
         }
         try {
+          const requestPayload = this.buildExtractRequestPayload(payload);
+          const requestBody = JSON.stringify(requestPayload);
+          console.info('[PickPick] backend extract request payload', {
+            compactDianpingMobile: Boolean(requestPayload.dianpingMobile),
+            requestLength: requestBody.length,
+            url: requestPayload.url || '',
+            dianpingHeaderNames: Object.keys(requestPayload.dianpingMobile?.headers || {}),
+            channel: requestPayload.channel,
+            context: requestPayload.context
+          });
           const response = await fetch(this.endpoint, {
             method: 'POST',
-            body: JSON.stringify({
-              type: 'extract',
-              channel: payload.channel,
-              text: payload.rawText,
-              url: this.extractFirstUrl(payload.rawText),
-              venue: payload.venue,
-              context: payload.context
-            })
+            body: requestBody
           });
           console.info('[PickPick] backend extract response', {
             ok: response.ok,
@@ -5194,6 +5444,10 @@
           console.info('[PickPick] backend extract data', data);
           console.info('[PickPick] backend extract data json', JSON.stringify(data, null, 2));
           const remoteVenue = this.normalizeVenue(data);
+          const remoteImages = this.getExtractedImages(data);
+          if (remoteImages.length) {
+            remoteVenue.images = [...new Set([...(remoteVenue.images || []), ...remoteImages])];
+          }
           const sourceText = this.getSourceText(data);
           const localText = this.combineText(payload.rawText, sourceText);
           const localVenue = AIExtractor.extractVenue(localText);
@@ -5279,8 +5533,327 @@
         }
       },
 
+      async searchPoi(keyword, city = '') {
+        const query = String(keyword || '').trim();
+        if (!this.isConfigured() || !query) return [];
+        try {
+          console.info('[PickPick] backend poi search start', { keyword: query, city });
+          const response = await fetch(this.endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              type: 'poiSearch',
+              keyword: query,
+              city
+            })
+          });
+          console.info('[PickPick] backend poi search response', {
+            ok: response.ok,
+            status: response.status,
+            url: response.url
+          });
+          if (!response.ok) throw new Error(`poi search failed: ${response.status}`);
+          const data = await response.json();
+          console.info('[PickPick] backend poi search data', data);
+          return (data.data?.pois || data.pois || []).map((poi) => this.normalizePoi(poi)).filter((poi) => poi.name);
+        } catch (error) {
+          console.warn('[PickPick] backend poi search fallback', {
+            keyword: query,
+            city,
+            message: error?.message || String(error)
+          });
+          return [];
+        }
+      },
+
+      async enrichVenueWithPoi({ baseVenue, venue, rawText = '', extraction = {}, channel = '' }) {
+        const keyword = this.getPoiKeyword(venue, baseVenue, rawText);
+        if (!keyword || !this.shouldSearchPoi(baseVenue, venue, channel)) {
+          console.info('[PickPick] backend poi search skipped', {
+            channel,
+            keyword,
+            venueId: baseVenue?.id || venue?.id || '',
+            hasGeoPlace: Boolean(baseVenue?.geoPlace || venue?.geoPlace),
+            hasAddress: Boolean(baseVenue?.address || venue?.address),
+            hasHours: Boolean(baseVenue?.hours || venue?.hours),
+            hasPrice: Boolean(Number(baseVenue?.price?.amount) || Number(venue?.price?.amount)),
+            imageCount: Math.max(baseVenue?.images?.length || 0, venue?.images?.length || 0)
+          });
+          return { venue, poiCandidates: [], autoAppliedPoi: null };
+        }
+        const city = this.inferPoiCity(venue, baseVenue, rawText, extraction);
+        const poiCandidates = await this.searchPoi(keyword, city);
+        if (poiCandidates.length === 1) {
+          const poiVenue = this.poiToVenue(poiCandidates[0]);
+          return {
+            venue: AIExtractor.applyPoiToVenue(baseVenue, venue, poiVenue),
+            poiCandidates: [],
+            autoAppliedPoi: poiCandidates[0]
+          };
+        }
+        return { venue, poiCandidates, autoAppliedPoi: null };
+      },
+
+      shouldSearchPoi(baseVenue = {}, venue = {}, channel = '') {
+        if (!this.isConfigured()) return false;
+        if (!this.getPoiKeyword(venue, baseVenue, '')) return false;
+        const linkedChannel = ['xiaohongshu', 'dianping'].includes(String(channel || '').toLowerCase());
+        const hasGeoPlace = Boolean(baseVenue.geoPlace || venue.geoPlace);
+        const hasAddress = Boolean(baseVenue.address || venue.address);
+        const hasHours = Boolean(baseVenue.hours || venue.hours);
+        const hasPrice = Boolean(Number(baseVenue.price?.amount) || Number(venue.price?.amount));
+        const hasImages = Boolean((baseVenue.images?.length || 0) || (venue.images?.length || 0));
+        if (linkedChannel) {
+          return !hasGeoPlace || !hasAddress || !hasHours || !hasPrice || !hasImages;
+        }
+        return !hasGeoPlace || !hasAddress || !hasHours || !hasPrice;
+      },
+
+      getPoiKeyword(venue = {}, baseVenue = {}, rawText = '') {
+        const sourceName = String(venue.name || baseVenue.name || '').trim();
+        const cleanName = sourceName
+          .replace(/[（(].*?[)）]/g, ' ')
+          .replace(/[^\u4e00-\u9fa5A-Za-z0-9 .&·_-]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (cleanName.length >= 2) return cleanName;
+        const textName = String(rawText || '').match(/(?:名称|店名|📍)\s*[:：]?\s*([^\n]{2,32})/)?.[1] || '';
+        return textName
+          .replace(/[（(].*?[)）]/g, ' ')
+          .replace(/[^\u4e00-\u9fa5A-Za-z0-9 .&·_-]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      },
+
+      inferPoiCity(venue = {}, baseVenue = {}, rawText = '', extraction = {}) {
+        const note = extraction.note || {};
+        const text = [
+          note.ipLocation,
+          note.city,
+          venue.address,
+          baseVenue.address,
+          extraction.sourceText,
+          rawText
+        ].map((item) => String(item || '')).join(' ');
+        const municipalities = ['北京', '天津', '上海', '重庆'];
+        const municipality = municipalities.find((name) => text.includes(name));
+        if (municipality) return municipality;
+        return text.match(/([\u4e00-\u9fa5]{2,10}市)/)?.[1] || '';
+      },
+
+      normalizePoi(poi = {}) {
+        const latitude = Number(poi.latitude ?? poi.lat);
+        const longitude = Number(poi.longitude ?? poi.lon);
+        const photos = Array.isArray(poi.photos)
+          ? poi.photos.map((photo) => ({
+            title: photo?.title || '',
+            url: this.normalizeImageUrl(typeof photo === 'string' ? photo : (photo?.url || ''))
+          })).filter((photo) => photo.url)
+          : [];
+        return {
+          ...poi,
+          name: String(poi.name || '').trim(),
+          address: String(poi.address || '').trim(),
+          cityname: String(poi.cityname || poi.city || '').trim(),
+          adname: String(poi.adname || poi.district || '').trim(),
+          type: String(poi.type || '').trim(),
+          tel: String(poi.tel || '').trim(),
+          rating: String(poi.rating || '').trim(),
+          cost: String(poi.cost || '').trim(),
+          openTime: String(poi.openTime || poi.hours || '').trim(),
+          latitude: Number.isFinite(latitude) ? latitude : null,
+          longitude: Number.isFinite(longitude) ? longitude : null,
+          photos
+        };
+      },
+
+      poiToVenue(poi = {}) {
+        const amount = Number(String(poi.cost || '').match(/\d+(\.\d+)?/)?.[0]) || 0;
+        const city = poi.cityname || '';
+        const district = poi.adname || '';
+        const rawAddress = poi.address || '';
+        const address = rawAddress.includes(city) || rawAddress.includes(district)
+          ? rawAddress
+          : [city, district, rawAddress].filter(Boolean).join('');
+        const business = this.getPoiBusiness(poi);
+        const notes = [
+          poi.rating ? `高德评分：${poi.rating}` : '',
+          poi.tel ? `电话：${poi.tel}` : '',
+          poi.type ? `高德类型：${poi.type}` : ''
+        ].filter(Boolean).join('；');
+        return {
+          source: 'amap-poi',
+          name: poi.name || '',
+          address,
+          hours: poi.openTime || '',
+          price: {
+            amount,
+            unit: amount ? '人' : '',
+            text: amount ? `人均${amount}元` : ''
+          },
+          environment: [],
+          device: [],
+          food: [],
+          business: business ? [business] : [],
+          pet: [],
+          tags: [],
+          customTags: business ? [business] : [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes,
+          sceneType: this.getPoiSceneType(poi),
+          images: poi.photos?.map((photo) => this.normalizeImageUrl(photo.url)).filter(Boolean) || [],
+          geoPlace: poi.latitude !== null && poi.longitude !== null && Number.isFinite(Number(poi.latitude)) && Number.isFinite(Number(poi.longitude))
+            ? {
+              provider: 'amap',
+              id: poi.id || '',
+              name: poi.name || '',
+              formattedAddress: address,
+              city,
+              district,
+              adcode: poi.adcode || '',
+              latitude: Number(poi.latitude),
+              longitude: Number(poi.longitude),
+              lat: Number(poi.latitude),
+              lon: Number(poi.longitude)
+            }
+            : null
+        };
+      },
+
+      getPoiBusiness(poi = {}) {
+        const text = `${poi.name || ''} ${poi.type || ''}`;
+        if (/咖啡|咖啡厅|饮品|甜品/.test(text)) return '纯咖啡';
+        if (/酒吧|酒馆|精酿|日咖夜酒/.test(text)) return '日咖夜酒';
+        if (/书店|图书|书房/.test(text) && /咖啡/.test(text)) return '书店+咖啡';
+        return '';
+      },
+
+      getPoiSceneType(poi = {}) {
+        const text = `${poi.name || ''} ${poi.type || ''}`;
+        if (/咖啡|咖啡厅|饮品|甜品/.test(text)) return '咖啡馆';
+        if (/自习|图书|书店|书房|教育/.test(text)) return '自习室';
+        return '';
+      },
+
       extractFirstUrl(value) {
         return String(value || '').match(/https?:\/\/\S+/)?.[0] || '';
+      },
+
+      cleanCurlValue(value) {
+        return String(value || '')
+          .trim()
+          .replace(/^\^+|\^+$/g, '')
+          .replace(/^['"]|['"]$/g, '')
+          .trim();
+      },
+
+      normalizeCurlCommandText(value) {
+        return String(value || '')
+          .replace(/\^\r?\n/g, ' ')
+          .replace(/\^"/g, '"')
+          .replace(/"\^/g, '"')
+          .replace(/\^'/g, "'")
+          .replace(/'\^/g, "'");
+      },
+
+      normalizeDianpingShopUrl(value) {
+        const text = this.cleanCurlValue(value);
+        const match = text.match(/https?:\/\/(?:m\.|www\.)?dianping\.com\/shop\/([A-Za-z0-9]+)/i);
+        return match?.[1] ? `https://m.dianping.com/shop/${match[1]}` : '';
+      },
+
+      extractDianpingMobileUrl(value) {
+        const text = this.normalizeCurlCommandText(value);
+        const direct = text.match(/https?:\/\/(?:m\.|www\.)?dianping\.com\/shop\/[A-Za-z0-9]+/i)?.[0] || '';
+        return this.normalizeDianpingShopUrl(direct);
+      },
+
+      canonicalDianpingHeaderName(name) {
+        const lowered = this.cleanCurlValue(name).replace(/\\"/g, '"').replace(/^\\+/, '').replace(/^"+|"+$/g, '').trim().toLowerCase();
+        const map = {
+          accept: 'Accept',
+          'accept-language': 'Accept-Language',
+          cookie: 'Cookie',
+          pragma: 'Pragma',
+          referer: 'Referer',
+          'user-agent': 'User-Agent'
+        };
+        return map[lowered] || '';
+      },
+
+      normalizeDianpingMobileHeaders(headers = {}) {
+        const output = {};
+        Object.entries(headers || {}).forEach(([name, value]) => {
+          const key = this.canonicalDianpingHeaderName(name);
+          const text = String(value || '')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/\^([%#@&|<>()"'])/g, '$1')
+            .replace(/\\"/g, '"')
+            .trim();
+          if (key && text) output[key] = text;
+        });
+        return output;
+      },
+
+      extractDianpingMobileRequest(rawText) {
+        const text = this.normalizeCurlCommandText(rawText);
+        const url = this.extractDianpingMobileUrl(text);
+        if (!url) return null;
+
+        const headers = {};
+        const headerPattern = /(?:^|\s)(?:-H|--header)\s+(?:"([^"]*)"|'([^']*)'|([^\r\n]+?)(?=\s+(?:-\w|--\w)|\s*$))/gi;
+        let match;
+        while ((match = headerPattern.exec(text))) {
+          const headerLine = this.cleanCurlValue(match[1] || match[2] || match[3] || '');
+          const separator = headerLine.indexOf(':');
+          if (separator <= 0) continue;
+          const key = headerLine.slice(0, separator).trim();
+          const value = headerLine.slice(separator + 1).trim();
+          if (key && value) headers[key] = value;
+        }
+
+        const cookiePattern = /(?:^|\s)(?:-b|--cookie)\s+(?:"([^"]*)"|'([^']*)'|([^\r\n]+?)(?=\s+(?:-\w|--\w)|\s*$))/gi;
+        while ((match = cookiePattern.exec(text))) {
+          const cookie = this.cleanCurlValue(match[1] || match[2] || match[3] || '');
+          if (cookie) headers.Cookie = cookie;
+        }
+
+        return {
+          url,
+          headers: this.normalizeDianpingMobileHeaders(headers),
+          requestMode: 'curl-compact'
+        };
+      },
+
+      sanitizeVenueForBackend(venue, channel, dianpingMobile) {
+        if (!venue || channel !== 'dianping' || !dianpingMobile?.url) return venue;
+        const sanitized = JSON.parse(JSON.stringify(venue));
+        sanitized.channelLinks = {
+          ...(sanitized.channelLinks || {}),
+          dianping: dianpingMobile.url
+        };
+        if (sanitized.sourceUrl && /m\.dianping\.com\/shop\//i.test(String(sanitized.sourceUrl))) {
+          sanitized.sourceUrl = dianpingMobile.url;
+        }
+        return sanitized;
+      },
+
+      buildExtractRequestPayload(payload) {
+        const channel = String(payload.channel || '').toLowerCase();
+        const dianpingMobile = channel === 'dianping'
+          ? this.extractDianpingMobileRequest(payload.rawText)
+          : null;
+        const text = dianpingMobile?.url || payload.rawText;
+        return {
+          type: 'extract',
+          channel: payload.channel,
+          text,
+          url: dianpingMobile?.url || this.extractFirstUrl(payload.rawText),
+          venue: this.sanitizeVenueForBackend(payload.venue, channel, dianpingMobile),
+          context: payload.context,
+          ...(dianpingMobile ? { dianpingMobile } : {})
+        };
       },
 
       normalizePlace(place) {
@@ -5315,6 +5888,34 @@
       combineText(rawText, sourceText) {
         const parts = [rawText, sourceText].map((item) => String(item || '').trim()).filter(Boolean);
         return [...new Set(parts)].join('\n');
+      },
+
+      normalizeImageUrl(value) {
+        const text = String(value || '').trim().replace(/&amp;/g, '&');
+        if (/^data:image\//i.test(text)) return text;
+        if (!/^https?:\/\//i.test(text)) return '';
+        try {
+          const url = new URL(text);
+          if (!['http:', 'https:'].includes(url.protocol)) return '';
+          if (url.hostname.toLowerCase().includes('xiaohongshu.com') && /\/discovery\/item\//i.test(url.pathname)) return '';
+          return url.toString();
+        } catch (error) {
+          return '';
+        }
+      },
+
+      getExtractedImages(data = {}) {
+        const source = data.data || data;
+        const values = [
+          ...(Array.isArray(source.images) ? source.images : []),
+          ...(Array.isArray(source.venue?.images) ? source.venue.images : []),
+          ...(Array.isArray(source.note?.images) ? source.note.images : [])
+        ];
+        return [...new Set(values.map((item) => {
+          if (typeof item === 'string') return this.normalizeImageUrl(item);
+          if (!item || typeof item !== 'object') return '';
+          return this.normalizeImageUrl(item.url || item.src || item.imageUrl || item.image_url);
+        }).filter(Boolean))];
       },
 
       normalizeVenue(data = {}) {
@@ -5360,7 +5961,10 @@
           menuInfo: source.menuInfo || source.menu || '',
           membershipInfo: source.membershipInfo || source.cardInfo || source.membership || '',
           notes: source.notes || source.description || '',
-          sceneType: source.sceneType || source.type || ''
+          sceneType: source.sceneType || source.type || '',
+          images: Array.isArray(source.images) ? source.images.map((image) => this.normalizeImageUrl(image)).filter(Boolean) : [],
+          geoPlace: source.geoPlace || null,
+          source: source.source || ''
         };
       },
 
@@ -5378,6 +5982,7 @@
           venue.pet?.length ||
           venue.tags?.length ||
           venue.customTags?.length ||
+          venue.images?.length ||
           venue.menuInfo ||
           venue.membershipInfo ||
           venue.notes ||
@@ -5430,7 +6035,7 @@
         mergeText('hours');
         mergeText('menuInfo');
         mergeText('membershipInfo');
-        if (extracted.notes && !nextVenue.notes) nextVenue.notes = extracted.notes;
+        nextVenue.notes = this.mergeTextBlock(nextVenue.notes, extracted.notes);
         if (!Number(nextVenue.price?.amount) && (Number(extracted.price?.amount) || extracted.price?.text)) {
           nextVenue.price = extracted.price;
         }
@@ -5452,6 +6057,52 @@
         ]);
         if ((!nextVenue.sceneType || nextVenue.sceneType === '其他') && extracted.sceneType) {
           nextVenue.sceneType = extracted.sceneType;
+        }
+        if (extracted.geoPlace && !nextVenue.geoPlace) {
+          nextVenue.geoPlace = extracted.geoPlace;
+        }
+        nextVenue.images = this.uniqueArray([...(nextVenue.images || []), ...(extracted.images || [])]);
+        return nextVenue;
+      },
+
+      applyPoiToVenue(baseVenue = {}, currentVenue = {}, poiVenue = {}) {
+        const nextVenue = { ...currentVenue };
+        const baseHasText = (field) => Boolean(String(baseVenue[field] || '').trim());
+        if (poiVenue.name && (!baseVenue.name || this.isPlaceholderName(baseVenue.name))) {
+          nextVenue.name = poiVenue.name;
+        }
+        if (poiVenue.address && (!baseHasText('address') || !this.isLikelyAddress(baseVenue.address))) {
+          nextVenue.address = poiVenue.address;
+        }
+        if (poiVenue.hours && !baseHasText('hours')) {
+          nextVenue.hours = poiVenue.hours;
+        }
+        if ((Number(poiVenue.price?.amount) || poiVenue.price?.text) && !Number(baseVenue.price?.amount)) {
+          nextVenue.price = poiVenue.price;
+        }
+        if ((!baseVenue.sceneType || baseVenue.sceneType === '其他') && poiVenue.sceneType) {
+          nextVenue.sceneType = poiVenue.sceneType;
+        }
+        ['environment', 'device', 'food', 'business', 'pet'].forEach((field) => {
+          nextVenue[field] = this.uniqueArray([...(nextVenue[field] || []), ...(poiVenue[field] || [])]);
+        });
+        nextVenue.tags = this.uniqueArray([
+          ...(nextVenue.tags || []),
+          ...(poiVenue.tags || []),
+          ...(nextVenue.environment || []),
+          ...(nextVenue.device || [])
+        ]);
+        nextVenue.customTags = this.uniqueArray([
+          ...(nextVenue.customTags || []),
+          ...(poiVenue.customTags || []),
+          ...(nextVenue.food || []),
+          ...(nextVenue.business || []),
+          ...(nextVenue.pet || [])
+        ]);
+        if (poiVenue.geoPlace) nextVenue.geoPlace = poiVenue.geoPlace;
+        nextVenue.images = this.uniqueArray([...(nextVenue.images || []), ...(poiVenue.images || [])]);
+        if (poiVenue.notes) {
+          nextVenue.notes = this.mergeTextBlock(nextVenue.notes, poiVenue.notes);
         }
         return nextVenue;
       },
@@ -5486,7 +6137,18 @@
           ...(merged.business || []),
           ...(merged.pet || [])
         ]);
+        merged.images = this.uniqueArray([...(merged.images || []), ...(fallback.images || [])]);
+        merged.notes = this.mergeTextBlock(merged.notes, fallback.notes);
         return merged;
+      },
+
+      mergeTextBlock(current = '', incoming = '') {
+        const currentText = String(current || '').trim();
+        const incomingText = String(incoming || '').trim();
+        if (!incomingText) return currentText;
+        if (!currentText) return incomingText;
+        if (currentText.includes(incomingText) || incomingText.includes(currentText)) return currentText.length >= incomingText.length ? currentText : incomingText;
+        return `${currentText}\n${incomingText}`;
       },
 
       isPlaceholderName(value) {
@@ -5524,6 +6186,7 @@
           ['customTags', '自定义标签'],
           ['menuInfo', '菜单'],
           ['membershipInfo', '办卡'],
+          ['images', '照片'],
           ['notes', '备注'],
           ['sceneType', '场景']
         ];

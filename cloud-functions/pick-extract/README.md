@@ -23,11 +23,16 @@ Do not commit real keys. Configure these in Tencent Cloud:
 JUSTONE_TOKEN
 JUSTONE_SHARE_URL=https://api.justoneapi.com/api/xiaohongshu/share-url-transfer/v1
 JUSTONE_NOTE_URL=https://api.justoneapi.com/api/xiaohongshu/get-note-detail/v1
+JUSTONE_DIANPING_DETAIL_URL
+IDATARIVER_API_KEY
+IDATARIVER_DIANPING_NOTE_URL=https://apiok.us/api/a294/note/detail/v2
+DIANPING_MOBILE_SERVICE_URL=https://1452700938-19erev13jl.ap-guangzhou.tencentscf.com
 DEEPSEEK_API_KEY
 DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
 DEEPSEEK_MODEL=deepseek-chat
 AMAP_KEY
 AMAP_GEOCODE_URL=https://restapi.amap.com/v3/geocode/geo
+AMAP_POI_URL=https://restapi.amap.com/v3/place/text
 ```
 
 ## Function URL
