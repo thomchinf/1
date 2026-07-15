@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "PickPick Dianping Helper",
+  "version": "0.1.0",
+  "description": "Extract Dianping shop details for PickPick without manually copying cURL.",
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "cookies",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.dianping.com/*",
+    "https://*.meituan.com/*",
+    "http://127.0.0.1:*/*",
+    "http://localhost:*/*",
+    "file:///*",
+    "https://1452700938-gzyqz1yprr.ap-guangzhou.tencentscf.com/*"
+  ],
+  "action": {
+    "default_title": "PickPick Dianping Helper",
+    "default_popup": "popup.html"
+  }
+}

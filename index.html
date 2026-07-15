@@ -2651,6 +2651,7 @@
         PickManager.init();
         HistoryManager.init();
         this.bindNavigation();
+        this.bindExtensionBridge();
         this.handleShareTarget();
         this.render();
         this.registerServiceWorker();
@@ -2722,6 +2723,170 @@
         try {
           window.history.replaceState({}, document.title, window.location.href.split('?')[0]);
         } catch (error) {}
+      },
+
+      bindExtensionBridge() {
+        window.addEventListener('pickpick:dianping-result', (event) => {
+          this.handleDianpingExtensionResult(event.detail || {});
+        });
+      },
+
+      buildExtensionRawText(detail = {}) {
+        const venue = detail.venue || {};
+        return [
+          detail.rawText || '',
+          venue.name ? `名称：${venue.name}` : '',
+          venue.address ? `地点：${venue.address}` : '',
+          venue.hours ? `时间：${venue.hours}` : '',
+          venue.price?.text || venue.price?.amount ? `价格：${venue.price?.text || venue.price?.amount}` : '',
+          venue.sceneType ? `场景：${venue.sceneType}` : '',
+          venue.device?.length ? `设备：${venue.device.join('、')}` : '',
+          venue.food?.length ? `美食：${venue.food.join('、')}` : '',
+          venue.business?.length ? `业态：${venue.business.join('、')}` : '',
+          venue.pet?.length ? `宠物：${venue.pet.join('、')}` : '',
+          venue.notes ? `备注：${venue.notes}` : '',
+          detail.shopUrl || ''
+        ].filter(Boolean).join('\n');
+      },
+
+      buildExtensionBaseVenue(venue = {}, shopUrl = '') {
+        return {
+          id: StarManager.createId('v'),
+          name: venue.name || '未命名地点',
+          address: '',
+          hours: '',
+          price: { amount: 0, unit: '人', text: '' },
+          environment: [],
+          device: [],
+          food: [],
+          business: [],
+          pet: [],
+          tags: [],
+          customTags: [],
+          menuInfo: '',
+          membershipInfo: '',
+          notes: '',
+          images: [],
+          channelLinks: shopUrl ? { dianping: shopUrl } : {},
+          visitCount: 0,
+          createdAt: new Date().toISOString().slice(0, 10),
+          sceneType: '',
+          source: 'dianping-extension',
+          sourceUrl: shopUrl
+        };
+      },
+
+      async handleDianpingExtensionResult(detail = {}) {
+        const extensionVenue = detail.venue || detail.result?.data?.venue || {};
+        const shopUrl = detail.shopUrl || extensionVenue.source || extensionVenue.sourceUrl || '';
+        const rawText = this.buildExtensionRawText({ ...detail, venue: extensionVenue, shopUrl });
+        if (!BackendClient.hasVenueData(extensionVenue)) {
+          UI.showStatus('扩展结果为空，请重新提取大众点评信息。');
+          return;
+        }
+        if (this.currentTab === 'pick' && PickManager.viewStep === 2) {
+          await this.applyDianpingExtensionToPick(extensionVenue, rawText, shopUrl);
+          return;
+        }
+        await this.applyDianpingExtensionToStar(extensionVenue, rawText, shopUrl);
+      },
+
+      async applyDianpingExtensionToStar(extensionVenue, rawText, shopUrl) {
+        const activeVenue = StarManager.getStep12Venue();
+        const baseVenue = activeVenue
+          ? {
+            ...activeVenue,
+            channelLinks: {
+              ...(activeVenue.channelLinks || {}),
+              dianping: shopUrl || activeVenue.channelLinks?.dianping || ''
+            },
+            sourceUrl: activeVenue.sourceUrl || shopUrl
+          }
+          : this.buildExtensionBaseVenue(extensionVenue, shopUrl);
+        const extractedVenue = AIExtractor.applyToVenue(baseVenue, rawText, extensionVenue);
+        const enriched = await BackendClient.enrichVenueWithPoi({
+          baseVenue,
+          venue: extractedVenue,
+          rawText,
+          extraction: { source: 'extension', venue: extensionVenue, sourceText: rawText },
+          channel: 'dianping'
+        });
+        const nextVenue = enriched.venue;
+        if (StarManager.step12Draft && StarManager.step12Draft.id === baseVenue.id) {
+          StarManager.step12Draft = nextVenue;
+          StarManager.renderStep12();
+        } else if (activeVenue) {
+          const venues = Storage.loadVenues();
+          if (venues.some((item) => item.id === activeVenue.id)) {
+            Storage.saveVenues(venues.map((item) => (item.id === activeVenue.id ? nextVenue : item)));
+            StarManager.renderStep12();
+          } else {
+            StarManager.openStep12Draft(nextVenue);
+          }
+        } else {
+          StarManager.openStep12Draft(nextVenue);
+        }
+        UI.closeModal();
+        if (enriched.poiCandidates.length) {
+          StarManager.showPoiCandidates({
+            owner: 'star',
+            venueId: nextVenue.id,
+            baseVenue,
+            candidates: enriched.poiCandidates
+          });
+          UI.showStatus('已接收大众点评扩展信息，请选择高德地点。', 'success');
+          return;
+        }
+        UI.showStatus('已接收大众点评扩展信息。', 'success');
+      },
+
+      async applyDianpingExtensionToPick(extensionVenue, rawText, shopUrl) {
+        const currentPick = Storage.loadCurrentPick();
+        const selectedVenues = PickManager.getSelectedVenues(currentPick);
+        const activeVenue = selectedVenues[currentPick.activeVenueIndex] || selectedVenues[0];
+        if (!activeVenue) {
+          await this.applyDianpingExtensionToStar(extensionVenue, rawText, shopUrl);
+          return;
+        }
+        const baseVenue = {
+          ...activeVenue,
+          channelLinks: {
+            ...(activeVenue.channelLinks || {}),
+            dianping: shopUrl || activeVenue.channelLinks?.dianping || ''
+          },
+          sourceUrl: activeVenue.sourceUrl || shopUrl
+        };
+        const extractedVenue = AIExtractor.applyToVenue(baseVenue, rawText, extensionVenue);
+        const enriched = await BackendClient.enrichVenueWithPoi({
+          baseVenue,
+          venue: extractedVenue,
+          rawText,
+          extraction: { source: 'extension', venue: extensionVenue, sourceText: rawText },
+          channel: 'dianping'
+        });
+        const venues = Storage.loadVenues();
+        Storage.saveVenues(venues.map((item) => (item.id === activeVenue.id ? enriched.venue : item)));
+        const copiedInfo = {
+          ...(currentPick.copiedInfo || {}),
+          [activeVenue.id]: {
+            ...(currentPick.copiedInfo?.[activeVenue.id] || {}),
+            dianping: rawText
+          }
+        };
+        Storage.saveCurrentPick({ ...currentPick, copiedInfo });
+        PickManager.render();
+        UI.closeModal();
+        if (enriched.poiCandidates.length) {
+          StarManager.showPoiCandidates({
+            owner: 'pick',
+            venueId: activeVenue.id,
+            baseVenue,
+            candidates: enriched.poiCandidates
+          });
+          UI.showStatus('已接收大众点评扩展信息，请选择高德地点。', 'success');
+          return;
+        }
+        UI.showStatus('已接收大众点评扩展信息。', 'success');
       },
 
       registerServiceWorker() {
@@ -3087,6 +3252,10 @@
       handleModalClick(event) {
         const trigger = event.target.closest('[data-action]');
         if (!trigger) return;
+        if (trigger.dataset.action === 'open-dianping-search') {
+          this.openDianpingSearch(trigger.dataset.query || '', trigger.dataset.city || '');
+          return;
+        }
         if (trigger.dataset.action === 'pick-add-star') {
           PickManager.addStarVenue(trigger.dataset.id);
           return;
@@ -3149,6 +3318,37 @@
           'close-modal': () => UI.closeModal()
         };
         if (actions[action]) actions[action]();
+      },
+
+      openDianpingSearch(query = '', city = '') {
+        const keyword = String(query || '').trim();
+        if (!keyword) {
+          UI.showStatus('请先填写场地名称。');
+          return;
+        }
+        const cityId = this.getDianpingCityId(city || keyword);
+        const url = `https://www.dianping.com/search/keyword/${cityId}/0_${encodeURIComponent(keyword)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+        UI.showStatus('已打开大众点评搜索页，进入店铺后可用扩展提取。', 'success');
+      },
+
+      getDianpingCityId(text = '') {
+        const value = String(text || '');
+        const cityMap = [
+          ['北京', '2'],
+          ['上海', '1'],
+          ['广州', '4'],
+          ['深圳', '7'],
+          ['天津', '10'],
+          ['杭州', '3'],
+          ['南京', '5'],
+          ['苏州', '6'],
+          ['成都', '8'],
+          ['武汉', '16'],
+          ['重庆', '9'],
+          ['西安', '17']
+        ];
+        return cityMap.find(([name]) => value.includes(name))?.[1] || '10';
       },
 
       openForm(venueId = '', options = {}) {
@@ -3458,19 +3658,24 @@
       openChannel(channel, query) {
         const venue = this.getStep12Venue();
         if (!venue) return;
+        const channelName = this.getChannelName(channel);
+        const dianpingSearchButton = channel === 'dianping'
+          ? `<button class="secondary-btn" type="button" data-action="open-dianping-search" data-query="${UI.escape(venue.name || query || '')}" data-city="${UI.escape(venue.address || '')}">打开大众点评</button>`
+          : '';
         UI.openModal(`
           <div class="modal-header">
             <div>
-              <p class="eyebrow">${UI.escape(this.getChannelName(channel))}</p>
+              <p class="eyebrow">${UI.escape(channelName)}</p>
               <h2 class="modal-title">粘贴信息</h2>
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
           <form id="channel-link-form" class="venue-form" data-owner="star" data-venue-id="${venue.id}" data-channel="${channel}">
             <p class="placeholder-text">可以保存链接；要自动提取字段，请粘贴页面复制出来的文字内容。</p>
+            ${dianpingSearchButton ? `<div class="form-actions">${dianpingSearchButton}</div>` : ''}
             <label class="field">
               链接/复制内容
-              <textarea name="link" rows="5" placeholder="粘贴 ${UI.escape(this.getChannelName(channel))} 链接或页面复制内容">${UI.escape(venue.channelLinks?.[channel] || '')}</textarea>
+              <textarea name="link" rows="5" placeholder="粘贴 ${UI.escape(channelName)} 链接或页面复制内容">${UI.escape(venue.channelLinks?.[channel] || '')}</textarea>
             </label>
             <div class="form-actions">
               <button class="primary-btn" type="submit">保存并提取</button>
@@ -4588,26 +4793,32 @@
       openChannel(channel, query) {
         const currentPick = Storage.loadCurrentPick();
         const venueId = currentPick.selectedVenueIds[currentPick.activeVenueIndex];
+        const venue = Storage.loadVenues().find((item) => item.id === venueId) || {};
         const channelNames = {
           meituan: '美团',
           xiaohongshu: '小红书',
           amap: '高德地图',
           dianping: '大众点评'
         };
+        const channelName = channelNames[channel] || '渠道';
+        const dianpingSearchButton = channel === 'dianping'
+          ? `<button class="secondary-btn" type="button" data-action="open-dianping-search" data-query="${UI.escape(venue.name || query || '')}" data-city="${UI.escape([venue.address, currentPick.userLocation].filter(Boolean).join(' '))}">打开大众点评</button>`
+          : '';
         const copiedInfo = currentPick.copiedInfo?.[venueId] || {};
         UI.openModal(`
           <div class="modal-header">
             <div>
-              <p class="eyebrow">${UI.escape(channelNames[channel] || '渠道')}</p>
+              <p class="eyebrow">${UI.escape(channelName)}</p>
               <h2 class="modal-title">粘贴信息</h2>
             </div>
             <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
           </div>
           <form id="channel-link-form" class="venue-form" data-owner="pick" data-venue-id="${venueId}" data-channel="${channel}">
             <p class="placeholder-text">可以保存链接；要自动提取字段，请粘贴页面复制出来的文字内容。</p>
+            ${dianpingSearchButton ? `<div class="form-actions">${dianpingSearchButton}</div>` : ''}
             <label class="field">
               链接/复制内容
-              <textarea name="link" rows="5" placeholder="每行粘贴一个 ${UI.escape(channelNames[channel] || '渠道')} 链接，或粘贴页面复制内容">${UI.escape(copiedInfo[channel] || '')}</textarea>
+              <textarea name="link" rows="5" placeholder="每行粘贴一个 ${UI.escape(channelName)} 链接，或粘贴页面复制内容">${UI.escape(copiedInfo[channel] || '')}</textarea>
             </label>
             <div class="form-actions">
               <button class="primary-btn" type="submit">保存并提取</button>

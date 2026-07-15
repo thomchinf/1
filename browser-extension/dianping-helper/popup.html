@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PickPick Dianping Helper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="helper-shell">
+    <header class="helper-header">
+      <p class="eyebrow">PickPick</p>
+      <h1>大众点评助手</h1>
+      <p id="page-status" class="status-text">正在读取当前页面...</p>
+    </header>
+
+    <section class="panel">
+      <label class="field">
+        <span>店铺链接</span>
+        <input id="shop-url" type="text" readonly>
+      </label>
+      <button id="extract-btn" class="primary-btn" type="button" disabled>提取当前店铺</button>
+      <p id="extract-status" class="status-text"></p>
+    </section>
+
+    <section id="result-panel" class="panel result-panel is-hidden">
+      <div class="result-title-row">
+        <h2 id="result-name">-</h2>
+        <span id="result-price" class="pill">-</span>
+      </div>
+      <dl class="result-list">
+        <div>
+          <dt>地址</dt>
+          <dd id="result-address">-</dd>
+        </div>
+        <div>
+          <dt>时间</dt>
+          <dd id="result-hours">-</dd>
+        </div>
+        <div>
+          <dt>分类</dt>
+          <dd id="result-scene">-</dd>
+        </div>
+        <div>
+          <dt>菜品</dt>
+          <dd id="result-food">-</dd>
+        </div>
+        <div>
+          <dt>图片</dt>
+          <dd id="result-images">-</dd>
+        </div>
+      </dl>
+      <div class="actions">
+        <button id="send-pickpick-btn" class="primary-inline-btn" type="button">发送到 PickPick</button>
+        <button id="copy-json-btn" class="secondary-btn" type="button">复制 JSON</button>
+        <button id="copy-text-btn" class="secondary-btn" type="button">复制文本</button>
+      </div>
+      <p id="send-status" class="status-text"></p>
+    </section>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
