@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 PORT = int(os.environ.get("PORT") or "9000")
-VERSION = "force-utf8-partial-20260715"
+VERSION = "field-detail-20260716"
 
 
 class VisibleTextParser(HTMLParser):
@@ -225,6 +225,61 @@ def html_to_lines(html):
     return [line for line in lines if line]
 
 
+def normalize_time_text(value):
+    return normalize_space(value).replace("：", ":")
+
+
+def extract_hours(lines, joined, status_text):
+    schedules = []
+    markers = r"营业|时间|开放|周一|周二|周三|周四|周五|周六|周日|周天|周末|工作日|节假日|每天|每日"
+    time_range = r"\d{1,2}[:：]\d{2}\s*[-~—至到]\s*\d{1,2}[:：]\d{2}"
+
+    for index, line in enumerate(lines):
+        if re.search(markers, line) and re.search(time_range, line):
+            schedules.append(normalize_time_text(line))
+        elif re.search(markers, line):
+            for next_line in lines[index + 1:index + 3]:
+                if re.search(time_range, next_line):
+                    schedules.append(normalize_time_text(f"{line} {next_line}"))
+                    break
+        elif re.search(time_range, line):
+            previous = lines[index - 1] if index > 0 else ""
+            if re.search(markers, previous):
+                schedules.append(normalize_time_text(f"{previous} {line}"))
+            elif status_text and status_text in lines and index <= lines.index(status_text) + 2:
+                schedules.append(normalize_time_text(line))
+
+    if schedules:
+        output = []
+        for item in schedules:
+            if item not in output:
+                output.append(item)
+        return "；".join(output[:4])
+
+    if status_text and status_text in lines:
+        status_index = lines.index(status_text)
+        if status_index + 1 < len(lines) and re.search(time_range, lines[status_index + 1]):
+            return normalize_time_text(lines[status_index + 1])
+
+    simple_hours = first_match(joined, [r"\n(\d{1,2}[:：]\d{2}\s*[-~—至到]\s*\d{1,2}[:：]\d{2})\n"])
+    return normalize_time_text(simple_hours)
+
+
+def extract_phone(html, lines, joined):
+    candidates = []
+    candidates.extend(re.findall(r"tel:([0-9+\-\s]{7,24})", html, re.I))
+    candidates.extend(re.findall(r"(?:电话|商家电话|联系电话)[:：\s]*((?:\d{3,4}[-\s]?)?\d{7,8}(?:转\d+)?|1[3-9]\d{9})", joined))
+    for line in lines:
+        if re.fullmatch(r"(?:\d{3,4}[-\s]?)?\d{7,8}(?:转\d+)?|1[3-9]\d{9}", line):
+            candidates.append(line)
+    cleaned = []
+    for item in candidates:
+        phone = normalize_space(item)
+        if phone and phone not in cleaned:
+            cleaned.append(phone)
+    return " / ".join(cleaned[:2])
+
+
 def parse_mobile_detail(html, source_url):
     lines = html_to_lines(html)
     joined = "\n".join(lines)
@@ -256,18 +311,22 @@ def parse_mobile_detail(html, source_url):
 
     rank_text = first_match(joined, [r"\n([^\n]+榜 · 第\d+名)\n"])
     status_text = first_match(joined, [r"\n(营业中|休息中|暂停营业)\n"])
-    hours = ""
-    if status_text and status_text in lines:
-        status_index = lines.index(status_text)
-        if status_index + 1 < len(lines) and re.search(r"\d{1,2}:\d{2}", lines[status_index + 1]):
-            hours = lines[status_index + 1]
-    if not hours:
-        hours = first_match(joined, [r"\n(\d{1,2}:\d{2}-\d{1,2}:\d{2})\n"])
+    hours = extract_hours(lines, joined, status_text)
+    phone = extract_phone(html, lines, joined)
 
     services = []
+    service_start = -1
     if hours and hours in lines:
-        start = lines.index(hours) + 1
-        for line in lines[start:start + 8]:
+        service_start = lines.index(hours) + 1
+    elif status_text and status_text in lines:
+        service_start = min(lines.index(status_text) + 2, len(lines))
+    else:
+        for index, line in enumerate(lines):
+            if re.search(r"\d{1,2}[:：]\d{2}\s*[-~—至到]\s*\d{1,2}[:：]\d{2}", line):
+                service_start = index + 1
+                break
+    if service_start >= 0:
+        for line in lines[service_start:service_start + 10]:
             if re.search(r"路|道|街|号|交口|底商|距地铁|到店|推荐菜", line):
                 break
             if line:
@@ -301,6 +360,7 @@ def parse_mobile_detail(html, source_url):
         "rankText": rank_text,
         "statusText": status_text,
         "hours": hours,
+        "phone": phone,
         "address": address,
         "distanceText": distance_text,
         "services": services,
