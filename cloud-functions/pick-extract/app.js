@@ -508,8 +508,6 @@ function normalizeDianpingDetail(result, debug = {}) {
     priceText: pickString(raw.avgPrice, raw.avg_price, raw.avgPriceText, raw.priceText, raw.price, raw.perCapita),
     category: pickString(raw.category, raw.categoryName, raw.category_name, raw.shopType, raw.shop_type, raw.type),
     rating: pickString(raw.rating, raw.score, raw.star, raw.avgScore, raw.avg_score),
-    statusText: pickString(raw.statusText, raw.status_text, raw.openStatus, raw.open_status, raw.businessStatus, raw.business_status),
-    phone: pickString(raw.phone, raw.tel, raw.telephone, raw.mobile, raw.contactPhone, raw.contact_phone),
     tags: normalizeArray(raw.tags || raw.tag_list || raw.tagList || raw.recommendTags || raw.topicList || raw.topic_list),
     recommendations: normalizeArray(raw.recommendations || raw.recommendDishes || raw.recommend_dishes || raw.dishes),
     desc: pickString(raw.desc, raw.description, raw.introduction, raw.summary, raw.content, raw.richContent, raw.rich_content),
@@ -560,8 +558,6 @@ function normalizeDianpingText(detail, dianpingUrl) {
     detail.priceText ? `价格：${detail.priceText}` : '',
     detail.category ? `场景：${detail.category}` : '',
     detail.rating ? `评分：${detail.rating}` : '',
-    detail.statusText ? `营业状态：${detail.statusText}` : '',
-    detail.phone ? `电话：${detail.phone}` : '',
     detail.tags?.length ? `标签：${detail.tags.join('、')}` : '',
     detail.recommendations?.length ? `推荐：${detail.recommendations.join('、')}` : '',
     detail.images?.length ? `图片：${detail.images.join('、')}` : '',
@@ -573,7 +569,6 @@ function normalizeDianpingText(detail, dianpingUrl) {
 function normalizeDianpingMobileShop(shop = {}) {
   const recommendedDishes = normalizeArray(shop.recommendedDishes || shop.recommendations);
   const services = normalizeArray(shop.services);
-  const rawTags = normalizeArray(shop.tags);
   const images = normalizeArray(shop.images).map(cleanImageUrl).filter(Boolean);
   return {
     provider: 'dianping-mobile',
@@ -590,317 +585,82 @@ function normalizeDianpingMobileShop(shop = {}) {
     rankText: String(shop.rankText || '').trim(),
     statusText: String(shop.statusText || '').trim(),
     distanceText: String(shop.distanceText || '').trim(),
-    phone: String(shop.phone || shop.tel || shop.telephone || '').trim(),
-    tags: uniqueArray([String(shop.category || '').trim(), String(shop.area || '').trim(), String(shop.rankText || '').trim(), ...rawTags, ...services].filter(Boolean)),
+    tags: uniqueArray([String(shop.category || '').trim(), String(shop.area || '').trim(), String(shop.rankText || '').trim(), ...services].filter(Boolean)),
     recommendations: recommendedDishes,
     services,
     desc: [
+      shop.scoreDetail ? `评分明细：${shop.scoreDetail}` : '',
+      shop.rankText ? `榜单：${shop.rankText}` : '',
       shop.statusText ? `营业状态：${shop.statusText}` : '',
-      (shop.phone || shop.tel || shop.telephone) ? `电话：${shop.phone || shop.tel || shop.telephone}` : ''
+      shop.distanceText ? `交通：${shop.distanceText}` : '',
+      services.length ? `服务：${services.join('、')}` : ''
     ].filter(Boolean).join('\n'),
     images,
     sourceUrl: String(shop.sourceUrl || '').trim()
   };
 }
 
-function parsePriceFromText(value = '') {
-  const text = String(value || '').trim();
-  const amount = Number(text.match(/\d+(\.\d+)?/)?.[0]) || 0;
-  let unit = '';
-  if (amount) {
-    if (/\/\s*人|人均|每人/.test(text)) unit = '人';
-    else if (/\/\s*杯|每杯|杯/.test(text)) unit = '杯';
-    else if (/\/\s*日|单日|全天|天/.test(text)) unit = '日';
-    else unit = '人';
-  }
-  return { amount, unit, text: amount ? `人均：${amount}元` : '' };
-}
-
-function extractEnvironmentFeatures(value = '') {
-  const text = String(value || '');
-  const values = [];
-  if (/非常安静|很安静|安静|清净|清静|静谧/.test(text)) values.push('音量：安静');
-  else if (/较安静|比较安静|不吵/.test(text)) values.push('音量：较安静');
-  if (/非常嘈杂|特别吵|很吵|吵闹/.test(text)) values.push('音量：非常嘈杂');
-  else if (/嘈杂|有点吵|人声|聊天声|人多/.test(text)) values.push('音量：嘈杂');
-
-  if (/自然光充足|自然光|采光很好|采光好|阳光|落地窗|明亮/.test(text)) values.push('光线：自然光充足');
-  if (/适合拍照|出片|好拍/.test(text) && /明亮|采光|阳光|自然光/.test(text)) values.push('光线：明亮');
-  if (/昏暗|偏暗|暗光|氛围感/.test(text)) values.push('光线：昏暗');
-
-  if (/空间宽敞|宽敞|座位间距大|不挤/.test(text)) values.push('空间：空间宽敞');
-  if (/局促|拥挤|挤|座位密|桌距近/.test(text)) values.push('空间：略显局促');
-  if (/露台|露天|户外|室外|外摆|小院|院子|庭院|花园/.test(text)) values.push('空间：有户外区域');
-
-  const styles = [];
-  if (/极简|简约/.test(text)) styles.push('极简风');
-  if (/工业风|水泥|清水混凝土|金属/.test(text)) styles.push('工业风');
-  if (/日式|原木|木质|木头/.test(text)) styles.push('日式原木');
-  if (/美式|复古|中古|怀旧/.test(text)) styles.push('美式复古');
-  if (/露营|营地|帐篷/.test(text)) styles.push('露营风');
-  if (/网红|ins|INS|打卡|出片/.test(text)) styles.push('网红 ins 风');
-  if (/温馨|暖色|温暖|柔和|奶油/.test(text)) styles.push('温馨');
-  uniqueArray(styles).slice(0, 2).forEach((style) => values.push(`风格：${style}`));
-
-  if (/太冷|偏冷|空调冷/.test(text)) values.push('温度：偏冷');
-  if (/太热|偏热|闷热/.test(text)) values.push('温度：偏热');
-  if (/温度舒适|不冷不热|暖和|凉快/.test(text)) values.push('温度：舒适');
-  return uniqueArray(values);
-}
-
-function extractDeviceFeatures(value = '') {
-  const text = String(value || '');
-  const values = [];
-  if (/大桌|大桌子|长桌|多人桌|桌子大/.test(text)) values.push('大桌子');
-  if (/小圆桌|圆桌/.test(text)) values.push('小圆桌');
-  if (/沙发|沙发位/.test(text)) values.push('沙发位');
-  if (/临窗|靠窗|窗边|窗景|景观位|落地窗/.test(text)) values.push('临窗座位');
-  if (/高脚凳|吧台椅/.test(text)) values.push('高脚凳');
-  if (/外摆|户外座|户外位|室外座|室外位/.test(text)) values.push('外摆区');
-  if (/露台|露天平台|天台/.test(text)) values.push('露台');
-  if (/插座|充电|电源/.test(text) && !/没.{0,4}插座|没有.{0,4}插座|无插座|插座.{0,4}(少|不足|不够)/.test(text)) values.push('插座');
-  if (/充电宝/.test(text) && !/无充电宝|没有.{0,4}充电宝|不提供.{0,4}充电宝/.test(text)) values.push('提供充电宝');
-  if (/Wi-?Fi|wifi|WIFI|无线网络|无线/.test(text)) values.push('Wi-Fi');
-  if (/网速快|Wi-?Fi.{0,6}快|wifi.{0,6}快|网络.{0,6}快/i.test(text)) values.push('Wi-Fi速度快');
-  if (/包间|包房|独立房间|独立空间|小房间/.test(text)) values.push('包间');
-  if (/洗手间.{0,8}干净|卫生间.{0,8}干净|厕所.{0,8}干净/.test(text)) values.push('洗手间干净');
-  else if (/洗手间.{0,8}密码|卫生间.{0,8}密码|厕所.{0,8}密码/.test(text)) values.push('洗手间需密码');
-  else if (/无洗手间|没有洗手间|无卫生间|没有卫生间|没厕所/.test(text)) values.push('无洗手间');
-  return uniqueArray(values);
-}
-
-function extractFoodCategories(value = '') {
-  const text = String(value || '');
-  const values = [];
-  if (/手冲|单品手冲/.test(text)) values.push('手冲咖啡');
-  if (/拿铁|澳白|馥芮白|美式|dirty|Dirty|冷萃|浓缩|特调咖啡|咖啡/.test(text)) values.push('咖啡饮品');
-  if (/巴斯克/.test(text)) values.push('巴斯克蛋糕');
-  if (/Gelato|gelato|冰淇淋|意式冰淇淋/.test(text)) values.push('Gelato');
-  if (/可颂|面包|吐司|贝果|烘焙/.test(text)) values.push('烘焙');
-  if (/蛋糕|甜品|甜点|慕斯|芝士|乳酪/.test(text)) values.push('蛋糕甜品');
-  if (/轻食|简餐|沙拉|意面|披萨|汉堡|三明治|饭|brunch|早午餐/i.test(text)) values.push('轻食简餐');
-  if (/茶|红茶|绿茶|乌龙|抹茶|焙茶|肉桂茶|花茶/.test(text)) values.push('茶饮');
-  if (/气泡水|苏打水|sparkling/i.test(text)) values.push('气泡水');
-  return uniqueArray(values);
-}
-
-function normalizeEnvironmentValues(values = []) {
-  const normalized = uniqueArray(values.map((item) => {
-    const text = String(item || '').trim();
-    if (/^安静$/.test(text)) return '音量：安静';
-    if (/较安静/.test(text)) return '音量：较安静';
-    if (/非常嘈杂/.test(text)) return '音量：非常嘈杂';
-    if (/嘈杂|人多吵闹/.test(text)) return '音量：嘈杂';
-    if (/有窗景|采光好|光线好/.test(text)) return '光线：自然光充足';
-    if (/光线暗/.test(text)) return '光线：昏暗';
-    if (/户外|露台|外摆/.test(text)) return '空间：有户外区域';
-    return text;
-  }).filter((item) => item && !/座位|桌|插座|Wi-Fi|卫生间|洗手间|充电宝/.test(item)));
-  const singleValuePrefixes = ['音量：', '光线：', '空间：', '温度：'];
-  const seenPrefixes = new Set();
-  return normalized.filter((item) => {
-    const prefix = singleValuePrefixes.find((value) => item.startsWith(value));
-    if (!prefix) return true;
-    if (seenPrefixes.has(prefix)) return false;
-    seenPrefixes.add(prefix);
-    return true;
-  });
-}
-
-function normalizeDeviceValues(values = []) {
-  return uniqueArray(values.map((item) => {
-    const text = String(item || '').trim();
-    if (/^大桌$|长桌|多人桌/.test(text)) return '大桌子';
-    if (/^小桌$/.test(text)) return '小圆桌';
-    if (/卫生间|厕所/.test(text)) return '洗手间干净';
-    if (/靠窗|窗边|窗景|落地窗|景观位|采光|阳光|窗户/.test(text)) return '临窗座位';
-    if (/户外位|露天位|外摆/.test(text)) return '外摆区';
-    if (/有露台/.test(text)) return '露台';
-    return text;
-  }).filter((item) => item && !/座位|座椅|桌位|位子|楼层|层数|柠檬水|自取水|纸巾|宠物|儿童|预约|等位|^[一二三四五六七八九十\d]+层$|^[一二三四五六七八九十\d]+楼$/.test(item)));
-}
-
-function normalizeBusinessValues(values = [], sourceText = '') {
-  const text = uniqueArray([...normalizeArray(values), sourceText].filter(Boolean)).join(' ');
-  const hasCoffee = /精品咖啡|咖啡|拿铁|美式|手冲|dirty|Dirty|冷萃|澳白|馥芮白|纯咖啡/.test(text);
-  const hasChain = /星巴克|瑞幸|库迪|Manner|Tims|Peet|% Arabica|连锁/.test(text);
-  const hasAlcohol = /酒吧|酒馆|精酿|红酒|葡萄酒|啤酒|鸡尾酒|特调鸡尾酒|晚上变身酒吧|夜酒|喝酒|小酒|酒水|酒|bar/i.test(text);
-  const hasBook = /书店|书房|图书|阅读/.test(text);
-  const hasBuyer = /买手店|买手|集合店|复合空间|选物|主理人/.test(text);
-  const hasBakery = /烘焙|面包|可颂|贝果|吐司|蛋糕专门|甜品专门/.test(text);
-  const hasCommunity = /社区|街角|居民区|邻里/.test(text);
-  const hasViral = /网红|打卡|出片|ins|INS|拍照/.test(text);
-  const hasTimeSplit = /白天.{0,10}咖啡.{0,16}(晚上|夜晚|夜间).{0,10}酒|(晚上|夜晚|夜间).{0,10}酒.{0,16}白天.{0,10}咖啡|早咖晚酒|昼咖夜酒|日间.{0,10}咖啡.{0,16}夜间.{0,10}酒|晚上变身酒吧|特调鸡尾酒|(\d{1,2}[:：]\d{2}|下午|傍晚|晚上|夜间).{0,8}(后|以后|开始).{0,12}(酒|酒吧|小酒)/.test(text);
-  const output = [];
-  if (hasCoffee && hasBook) output.push('咖啡+书店');
-  else if (hasCoffee && hasAlcohol && hasTimeSplit) output.push('日咖夜酒（早C晚A）');
-  else if (hasChain) output.push('连锁咖啡');
-  else if (hasCoffee) output.push('精品咖啡');
-  if (hasBakery) output.push('烘焙专门店');
-  if (hasBuyer) output.push('买手店复合空间');
-  if (hasViral) output.push('网红打卡店');
-  if (!output.length && hasCommunity) output.push('社区咖啡馆');
-  if (hasCommunity && output.length < 2 && !output.includes('社区咖啡馆')) output.push('社区咖啡馆');
-  return uniqueArray(output).slice(0, 2);
-}
-
-function extractScenePersona(value = '') {
-  const text = String(value || '');
-  const values = [];
-  const badNet = /网差|网络差|Wi-?Fi.{0,6}(慢|差)|没网|无网/i.test(text);
-  const noStudy = /不适合.{0,8}(学习|自习|工作|办公)|不建议.{0,8}(学习|自习|工作|办公)|太吵.{0,8}(学习|自习|工作|办公)/.test(text);
-  if (noStudy) {
-    if (/学习|自习/.test(text)) values.push('不适合学习');
-    if (/工作|办公|电脑|PPT|ppt/.test(text)) values.push('不适合工作');
-  }
-  if (!noStudy && /学习|自习|看书|阅读/.test(text)) values.push(/看书|阅读/.test(text) ? '适合看书' : '适合学习');
-  if (!noStudy && !badNet && /电脑|办公|工作|赶PPT|赶ppt|写方案|远程办公/.test(text)) values.push('适合工作');
-  if (/聚餐|聚会|朋友聚|多人|小聚/.test(text)) values.push('适合聚餐');
-  if (/打卡|拍照|出片|网红|好拍|适合拍/.test(text)) values.push('适合打卡拍照');
-  if (/下午茶|甜品|蛋糕|茶歇/.test(text)) values.push('适合下午茶');
-  if (/亲子|孩子|儿童|遛娃|儿童推车/.test(text)) values.push('适合亲子');
-  if (/一人食|一个人|独自|独处|旅行|游客|旅游/.test(text)) values.push(/旅行|游客|旅游/.test(text) ? '适合旅行' : '适合一人食');
-  return uniqueArray(values);
-}
-
-function extractServiceFeatures(value = '') {
-  const text = String(value || '');
-  return uniqueArray([
-    /免费.{0,4}柠檬水|柠檬水/.test(text) ? '免费柠檬水' : '',
-    /免费.{0,4}自取水|自取水|自助水/.test(text) ? '免费自取水' : '',
-    /提供纸巾|有纸巾|纸巾/.test(text) ? '提供纸巾' : '',
-    /宠物友好|可带宠物|可以带宠物|允许宠物/.test(text) ? '宠物友好' : '',
-    /不可携带宠物|不能带宠物|不允许宠物|禁止宠物/.test(text) ? '不可携带宠物' : '',
-    /儿童推车|婴儿车/.test(text) ? '允许儿童推车' : '',
-    /无需预约|不用预约/.test(text) ? '无需预约' : '',
-    /需现场等位|现场等位/.test(text) ? '需现场等位' : '',
-    /可提前预定包间|可预定包间|提前预定|提前预约/.test(text) ? '可提前预定包间' : '',
-    /猫|猫咪|店猫/.test(text) ? '店猫' : '',
-    /狗|狗狗|宠物狗|可带宠物/.test(text) ? '可带狗' : ''
-  ]);
-}
-
-function extractPetFeatures(value = '') {
-  return extractServiceFeatures(value);
-}
-
-function pruneDuplicateNotes(notes = '', venue = {}) {
-  const serviceText = uniqueArray([...(venue.service || []), ...(venue.pet || [])]).join('、');
-  const structuredText = [
-    venue.name,
-    venue.address,
-    venue.hours,
-    venue.price?.text,
-    venue.price?.amount ? String(venue.price.amount) : '',
-    ...(venue.environment || []),
-    ...(venue.device || []),
-    ...(venue.food || []),
-    ...(venue.business || []),
-    serviceText
-  ].filter(Boolean).join(' ');
-  return uniqueArray(String(notes || '')
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => {
-      if (/^(免费服务|服务)[:：]/.test(line) && /(柠檬水|自取水|纸巾|宠物|儿童|预约|等位)/.test(line)) return false;
-      if (/^预约规则[:：]/.test(line) && /(预约|等位|包间)/.test(serviceText)) return false;
-      if (/^(地点|地址|时间|价格|美食|设备|环境|业态)[:：]/.test(line)) return false;
-      const compactLine = line.replace(/\s+/g, '');
-      if (compactLine.length <= 18 && structuredText.replace(/\s+/g, '').includes(compactLine)) return false;
-      return true;
-    }))
-    .slice(0, 8)
-    .join('\n');
-}
-
-function sanitizeVenueFields(venue = {}) {
-  const next = { ...venue };
-  next.service = uniqueArray([...(next.service || []), ...(next.pet || [])]);
-  next.pet = next.service;
-  next.environment = normalizeEnvironmentValues(next.environment || []);
-  next.device = normalizeDeviceValues(next.device || []);
-  next.tags = uniqueArray([...(next.tags || []), ...(next.environment || []), ...(next.device || [])])
-    .filter((tag) => !/(柠檬水|自取水|纸巾|宠物|儿童|预约|等位)/.test(tag));
-  next.customTags = uniqueArray([...(next.customTags || []), ...(next.food || []), ...(next.business || []), ...(next.service || [])])
-    .filter((tag) => !next.tags.includes(tag));
-  next.notes = pruneDuplicateNotes(next.notes || '', next);
-  return next;
-}
-
 function normalizeDianpingDetailVenue(detail = {}) {
   if (!detail || detail.provider !== 'dianping-mobile') return null;
   const priceText = String(detail.priceText || '').trim();
+  const priceAmount = Number(priceText.match(/\d+(\.\d+)?/)?.[0]) || 0;
   const services = normalizeArray(detail.services);
-  const tags = normalizeArray(detail.tags);
   const recommendations = normalizeArray(detail.recommendations);
   const category = String(detail.category || '').trim();
-  const featureText = [
-    category,
-    detail.area,
-    detail.rankText,
-    detail.statusText,
-    detail.desc,
-    ...services,
-    ...tags,
-    ...recommendations
-  ].filter(Boolean).join(' ');
   const notes = [
-    detail.statusText ? `营业状态：${detail.statusText}` : '',
-    detail.phone ? `电话：${detail.phone}` : '',
     detail.rating ? `大众点评评分：${detail.rating}` : '',
     detail.reviewCount ? `评论数：${detail.reviewCount}` : '',
     detail.scoreDetail ? `评分明细：${detail.scoreDetail}` : '',
-    detail.rankText ? `榜单：${detail.rankText}` : ''
+    detail.rankText ? `榜单：${detail.rankText}` : '',
+    detail.statusText ? `营业状态：${detail.statusText}` : '',
+    detail.distanceText ? `交通：${detail.distanceText}` : '',
+    services.length ? `服务：${services.join('、')}` : ''
   ].filter(Boolean).join('\n');
-  const price = parsePriceFromText(priceText);
-  return sanitizeVenueFields({
+  return {
     name: detail.name || '',
     address: detail.address || '',
     hours: detail.hours || '',
-    price,
-    environment: normalizeEnvironmentValues(extractEnvironmentFeatures(featureText)),
-    device: normalizeDeviceValues(extractDeviceFeatures(featureText)),
-    food: extractFoodCategories(recommendations.join(' ')),
-    business: normalizeBusinessValues([category], featureText),
-    service: uniqueArray([...services, ...extractServiceFeatures(featureText)]),
-    pet: uniqueArray([...services, ...extractServiceFeatures(featureText)]),
-    tags: uniqueArray([...tags, ...services]),
+    price: {
+      amount: priceAmount,
+      unit: priceAmount ? '人' : '',
+      text: priceText
+    },
+    environment: [],
+    device: services.filter((item) => /插座|Wi-?Fi|无线|停车|卫生间|宠物/i.test(item)),
+    food: recommendations,
+    business: category ? [category] : [],
+    pet: uniqueArray([
+      services.some((item) => /猫/.test(item)) ? '猫' : '',
+      services.some((item) => /狗/.test(item)) ? '狗' : ''
+    ]),
+    tags: services,
     customTags: uniqueArray([...recommendations, category].filter(Boolean)),
     menuInfo: recommendations.length ? recommendations.join('、') : '',
     membershipInfo: '',
     notes,
-    sceneType: extractScenePersona(featureText).join('、') || '',
+    sceneType: /咖啡/.test(category) ? '咖啡馆' : (category || ''),
     images: normalizeArray(detail.images).map(cleanImageUrl).filter(Boolean),
     source: detail.sourceUrl || ''
-  });
+  };
 }
 
 function mergeVenueWithFallback(primary, fallback) {
   if (!primary) return fallback;
   if (!fallback) return primary;
   const merged = { ...primary };
-  if (fallback.name && (!merged.name || fallback.name.includes(merged.name) || merged.name.includes(fallback.name))) {
-    merged.name = fallback.name;
-  }
   ['name', 'address', 'hours', 'menuInfo', 'membershipInfo', 'notes', 'sceneType', 'source'].forEach((field) => {
     if (!merged[field] && fallback[field]) merged[field] = fallback[field];
   });
-  if (Number(fallback.price?.amount) || fallback.price?.text) {
+  if ((!Number(merged.price?.amount) && !merged.price?.text) && (Number(fallback.price?.amount) || fallback.price?.text)) {
     merged.price = fallback.price;
   }
-  merged.service = uniqueArray([...(merged.service || []), ...(merged.pet || [])]);
-  fallback.service = uniqueArray([...(fallback.service || []), ...(fallback.pet || [])]);
-  ['environment', 'device', 'food', 'business', 'service', 'pet', 'tags', 'customTags', 'images'].forEach((field) => {
+  ['environment', 'device', 'food', 'business', 'pet', 'tags', 'customTags', 'images'].forEach((field) => {
     merged[field] = uniqueArray([...(merged[field] || []), ...(fallback[field] || [])]);
   });
-  merged.environment = normalizeEnvironmentValues([...(fallback.environment || []), ...(primary.environment || [])]);
-  merged.device = normalizeDeviceValues(merged.device || []);
-  merged.business = normalizeBusinessValues(merged.business || [], [merged.sceneType, merged.menuInfo, ...(merged.food || [])].join(' '));
   if (fallback.notes && merged.notes && !merged.notes.includes(fallback.notes)) {
     merged.notes = `${merged.notes}\n${fallback.notes}`;
   }
-  return sanitizeVenueFields(merged);
+  return merged;
 }
 
 function normalizeDianpingMobileText(shop = {}) {
@@ -917,7 +677,6 @@ function normalizeDianpingMobileText(shop = {}) {
     detail.area ? `商圈：${detail.area}` : '',
     detail.rankText ? `榜单：${detail.rankText}` : '',
     detail.statusText ? `营业状态：${detail.statusText}` : '',
-    detail.phone ? `电话：${detail.phone}` : '',
     detail.distanceText ? `交通：${detail.distanceText}` : '',
     detail.services?.length ? `服务：${detail.services.join('、')}` : '',
     detail.recommendations?.length ? `推荐菜：${detail.recommendations.join('、')}` : '',
@@ -1105,23 +864,15 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
             'Return values in the same language as the source text.',
             'Use empty strings, empty arrays, or 0 for unknown fields.',
             'Do not invent facts. Only fill fields supported by the source text.',
-            'Keep extraction rich but factual. Preserve all original evidence in sourceText; extract structured fields from that evidence, then put only simplified supported viewpoints in notes.',
-            'If names conflict, prefer Gaode/Dianping POI names over Xiaohongshu names. Mention Xiaohongshu names only as aliases in notes when useful.',
-            'If sources conflict on open status, hours, or phone, prefer Gaode/Dianping official details over Xiaohongshu or review text.',
-            'If sources conflict on environment facts, prefer Gaode/Dianping facts over Xiaohongshu. Do not output contradictory environment labels, for example do not output both 光线：明亮 and 光线：昏暗.',
-            'Do not duplicate one fact across multiple fields. Put 柠檬水/自取水/纸巾/宠物政策/预约等位 only in service, not in device or notes. Put physical facilities only in device. Put atmosphere only in environment.',
+            'If the source says a feature is missing, scarce, unavailable, inconvenient, noisy, smoky, or otherwise negative, do not add it as a positive environment/device/tag. Put that caveat in notes.',
             'Classify venue facts into these PickPick fields:',
-            'hours: use the most detailed version. Normalize like 周一至周五 10:00-19:30；周六至周日 10:00-20:00. Preserve special date rules exactly after normal hours, e.g. 2026-02-16至2026-02-16 周一 全天关闭.',
-            'sceneType: output scene/persona labels joined by 、, such as 适合学习, 不适合学习, 适合工作, 不适合工作, 适合聚餐, 适合打卡拍照, 适合看书, 适合下午茶, 适合亲子, 适合一人食, 适合旅行. If text says 电脑/办公/赶PPT and does not say network is bad, classify as 适合工作. Also extract peak time facts into notes.',
-            'environment: output atmosphere facts, not facilities. Use labels like 音量：安静/较安静/嘈杂/非常嘈杂, 光线：明亮/昏暗/自然光充足, 风格：极简风/工业风/日式原木/美式复古/露营风/网红 ins 风/温馨, 空间：空间宽敞/略显局促/有户外区域. Output only one 音量 label, one 光线 label, one 空间 label, and one 温度 label. Limit style to 2 keywords.',
-            'device: output hardware/facility facts, such as 大桌子, 小圆桌, 沙发位, 临窗座位, 高脚凳, 外摆区, 露台, 插座, 提供充电宝, Wi-Fi速度快, 洗手间干净, 洗手间需密码, 无洗手间. Do not output floor counts such as 三层.',
-            'food: output concrete product categories, not long dish names, such as 手冲咖啡, 巴斯克蛋糕, Gelato, 可颂, 轻食简餐, 茶饮, 气泡水. Put detailed dish names in menuInfo.',
-            'business: choose 1-2 from this exact enum only: 精品咖啡, 连锁咖啡, 咖啡+书店, 日咖夜酒（早C晚A）, 社区咖啡馆, 烘焙专门店, 网红打卡店, 买手店复合空间. Use 日咖夜酒（早C晚A） if text says 晚上变身酒吧 or 特调鸡尾酒.',
-            'service: output service/policy labels when supported, such as 免费柠檬水, 免费自取水, 提供纸巾, 宠物友好, 不可携带宠物, 允许儿童推车, 无需预约, 需现场等位, 可提前预定包间. If only shop cats/dogs are mentioned, use 店猫 or 可带狗. Do not output a separate pet field unless needed for backward compatibility.',
-            'For Dianping text, prefer the Dianping price phrase for price.amount, price.unit, and price.text.',
+            'environment: only use explicit values like 安静, 禁烟, 靠窗.',
+            'device: only use explicit values like 插座, 大桌, 音乐, 卫生间.',
+            'food: food or drink names explicitly mentioned, such as 柠檬巴斯克, 抹茶拿铁.',
+            'business: venue business type, such as 纯咖啡, 日咖夜酒, 书店+咖啡.',
+            'pet: only use 猫 or 狗 when explicitly mentioned.',
             'price.amount must be a number. price.unit should be a short unit from the source text.',
-            'price.text should be formatted like 人均：59元 when available; if no price exists, keep empty and do not guess.',
-            'notes: include only real supported details not already covered by structured fields: 营业状态, 电话, 高峰时段, 外带规则, 榜单/评价来源, and one concise experience summary with 最大亮点 and 最大槽点. Do not repeat service/device/environment/food/address/hours/price facts already extracted. Do not infer or imagine.',
+            'price.text should keep the original price phrase when available.',
             'tags and customTags are optional backward-compatible fields.'
           ].join('\n')
         },
@@ -1139,7 +890,6 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
                 food: [],
                 price: { amount: 0, unit: '', text: '' },
                 business: [],
-                service: [],
                 pet: [],
                 tags: [],
                 customTags: [],
@@ -1165,32 +915,19 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
 
   const content = result?.choices?.[0]?.message?.content || '';
   const parsed = parseJson(content, null);
-  const venue = enrichVenueWithSourceSignals(normalizeVenue(parsed?.venue || parsed), sourceText);
+  const venue = normalizeVenue(parsed?.venue || parsed);
   debug.deepSeekError = '';
   return hasVenueData(venue) ? venue : null;
 }
 
 function normalizeVenue(value = {}) {
   const price = value.price || {};
-  const environment = normalizeEnvironmentValues(normalizeArray(value.environment || value.environments));
-  const device = normalizeDeviceValues(normalizeArray(value.device || value.devices || value.equipment));
+  const environment = normalizeArray(value.environment || value.environments);
+  const device = normalizeArray(value.device || value.devices || value.equipment);
   const food = normalizeArray(value.food || value.foods || value.menuItems || value.menu_items);
-  const sourceForRules = [
-    value.sceneType,
-    value.scene_type,
-    value.menuInfo,
-    value.menu_info,
-    value.notes,
-    value.note
-  ].filter(Boolean).join(' ');
-  const business = normalizeBusinessValues(value.business || value.businessType || value.business_type || value.businesses, sourceForRules);
-  const scenePersona = extractScenePersona([value.sceneType, value.scene_type, sourceForRules].filter(Boolean).join(' '));
-  const service = uniqueArray([
-    ...normalizeArray(value.service || value.services),
-    ...normalizeArray(value.pet || value.pets)
-  ]);
-  const pet = service;
-  const knownTagOptions = ['音量：安静', '音量：较安静', '音量：嘈杂', '音量：非常嘈杂', '光线：明亮', '光线：昏暗', '光线：自然光充足', '风格：极简风', '风格：工业风', '风格：日式原木', '风格：美式复古', '风格：露营风', '风格：网红 ins 风', '风格：温馨', '空间：空间宽敞', '空间：略显局促', '空间：有户外区域', '温度：舒适', '温度：偏冷', '温度：偏热', '大桌子', '小圆桌', '沙发位', '临窗座位', '高脚凳', '外摆区', '露台', '插座', '提供充电宝', 'Wi-Fi', 'Wi-Fi速度快', '包间', '洗手间干净', '洗手间需密码', '无洗手间'];
+  const business = normalizeArray(value.business || value.businessType || value.business_type || value.businesses);
+  const pet = normalizeArray(value.pet || value.pets);
+  const knownTagOptions = ['安静', '禁烟', '靠窗', '插座', '大桌', '音乐', '卫生间'];
   const tags = uniqueArray([
     ...normalizeArray(value.tags).filter((tag) => knownTagOptions.includes(tag)),
     ...environment,
@@ -1200,9 +937,9 @@ function normalizeVenue(value = {}) {
     ...normalizeArray(value.customTags || value.custom_tags),
     ...food,
     ...business,
-    ...service
+    ...pet
   ]);
-  return sanitizeVenueFields({
+  return {
     name: String(value.name || '').trim(),
     address: String(value.address || '').trim(),
     hours: String(value.hours || '').trim(),
@@ -1215,122 +952,15 @@ function normalizeVenue(value = {}) {
     device,
     food,
     business,
-    service,
     pet,
     tags,
     customTags,
     menuInfo: String(value.menuInfo || value.menu_info || '').trim(),
     membershipInfo: String(value.membershipInfo || value.membership_info || '').trim(),
-    notes: extractUsefulNotes(value.notes || value.note || ''),
-    sceneType: scenePersona.join('、') || String(value.sceneType || value.scene_type || '').trim(),
+    notes: String(value.notes || '').trim(),
+    sceneType: String(value.sceneType || value.scene_type || '').trim(),
     images: normalizeArray(value.images || value.photos)
-  });
-}
-
-function extractFullHoursFromText(value = '') {
-  const lines = String(value || '')
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const scheduleLines = lines.filter((line) => (
-    /(营业|时间|开放|周一|周二|周三|周四|周五|周六|周日|周天|周末|工作日|节假日|每天|每日)/.test(line)
-    && /\d{1,2}[:：]\d{2}/.test(line)
-  ));
-  if (scheduleLines.length) return uniqueArray(scheduleLines).slice(0, 4).join('；').replace(/：/g, ':');
-
-  const scheduleMatches = String(value || '').match(/(?:周[一二三四五六日天末至到、,，\s-]+|工作日|节假日|每天|每日).{0,32}\d{1,2}[:：]\d{2}.{0,20}\d{1,2}[:：]\d{2}/g) || [];
-  if (scheduleMatches.length) return uniqueArray(scheduleMatches).slice(0, 4).join('；').replace(/：/g, ':');
-
-  const range = String(value || '').match(/\d{1,2}[:：]\d{2}\s*[-~—至到]\s*\d{1,2}[:：]\d{2}/);
-  return range ? range[0].replace(/：/g, ':') : '';
-}
-
-function extractStatusPhoneNotes(value = '') {
-  const text = String(value || '');
-  const status = text.match(/(?:营业状态[:：]?\s*)?(营业中|休息中|暂停营业|已打烊)/)?.[1] || '';
-  const phone = text.match(/(?:电话|商家电话|联系电话)[:：\s]*((?:\d{3,4}[-\s]?)?\d{7,8}(?:转\d+)?|1[3-9]\d{9})/)?.[1] || '';
-  return [
-    status ? `营业状态：${status}` : '',
-    phone ? `电话：${phone}` : ''
-  ].filter(Boolean).join('\n');
-}
-
-function extractUsefulNotes(value = '') {
-  const text = String(value || '');
-  const base = extractStatusPhoneNotes(text).split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  const compact = text.replace(/\s+/g, ' ');
-  const notes = [...base];
-  const hasNegativePrice = /价格不便宜|不便宜|偏贵|贵|价格高|人均高/.test(compact);
-  const hasWorth = /很值得|值得|值|性价比高|体验下来.*值/.test(compact);
-  if (hasNegativePrice && hasWorth) notes.push('价格体验：不便宜但值得');
-  else if (hasWorth) notes.push('价格体验：值得');
-  else if (hasNegativePrice) notes.push('价格体验：不便宜');
-
-  if (/环境.{0,12}(非常棒|很棒|特别棒|很好|不错|舒服)|环境非常棒|环境很棒/.test(compact)) notes.push('环境体验：非常棒');
-  else if (/环境.{0,12}(一般|普通)/.test(compact)) notes.push('环境体验：一般');
-  else if (/环境.{0,12}(嘈杂|吵|人多)/.test(compact)) notes.push('环境体验：偏吵');
-
-  if (/柠檬水/.test(compact)) {
-    notes.push(/不提供.{0,6}柠檬水|没有.{0,6}柠檬水|无.{0,6}柠檬水/.test(compact)
-      ? '服务：不提供柠檬水'
-      : '服务：提供柠檬水');
-  } else {
-    const serviceMatch = compact.match(/服务.{0,18}(很好|不错|一般|差|热情|冷淡|周到)/);
-    if (serviceMatch) notes.push(`服务：${serviceMatch[1]}`);
-  }
-
-  if (/大众点评.{0,8}必吃榜|必吃榜/.test(compact)) notes.push('评价来源：大众点评必吃榜');
-  if (/工作日中午.{0,12}(排队|人多)|周末.{0,12}(排队|人多|嘈杂|吵)|高峰.{0,12}(排队|人多)|饭点.{0,12}(排队|人多)/.test(compact)) {
-    const peak = compact.match(/(?:工作日中午|周末|高峰|饭点).{0,18}(?:排队|人多|嘈杂|吵)/)?.[0] || '';
-    notes.push(`高峰时段：${peak}`);
-  }
-  if (/外带减\s*\d+|支持外带|可以外带|可外带|不可外带|不能外带/.test(compact)) {
-    const takeaway = compact.match(/外带减\s*\d+\s*元?|支持外带|可以外带|可外带|不可外带|不能外带/)?.[0] || '';
-    notes.push(`外带规则：${takeaway}`);
-  }
-  if (/柠檬水|自取水|纸巾/.test(compact)) {
-    const services = uniqueArray([
-      /免费.{0,4}柠檬水|柠檬水/.test(compact) ? '免费柠檬水' : '',
-      /免费.{0,4}自取水|自取水/.test(compact) ? '免费自取水' : '',
-      /纸巾/.test(compact) ? '提供纸巾' : ''
-    ]);
-    if (services.length) notes.push(`免费服务：${services.join('、')}`);
-  }
-  if (/无需预约|不用预约|需现场等位|现场等位|提前预定|提前预约|可预定包间|可提前预定包间/.test(compact)) {
-    const booking = compact.match(/无需预约|不用预约|需现场等位|现场等位|可提前预定包间|提前预定|提前预约/)?.[0] || '';
-    notes.push(`预约规则：${booking}`);
-  }
-  if (/愿意.{0,4}二刷|会.{0,4}再去|想.{0,4}再去|好感|喜欢|推荐/.test(compact)) notes.push('好感度：想再去');
-  if (/不推荐|避雷|踩雷/.test(compact)) notes.push('好感度：不推荐');
-  if (/周末.{0,8}(人多|嘈杂|吵)|人多.{0,8}(嘈杂|吵)|排队/.test(compact)) notes.push('客流：人多或需排队');
-  const highlight = compact.match(/(?:最大亮点|亮点|优点|最喜欢|推荐).{0,24}/)?.[0] || '';
-  const drawback = compact.match(/(?:最大槽点|槽点|缺点|不足|避雷).{0,24}/)?.[0] || '';
-  if (highlight || drawback) {
-    notes.push(`体验总结：${[highlight ? `亮点是${highlight.replace(/^(最大亮点|亮点|优点|最喜欢|推荐)[:：]?/, '')}` : '', drawback ? `槽点是${drawback.replace(/^(最大槽点|槽点|缺点|不足|避雷)[:：]?/, '')}` : ''].filter(Boolean).join('，')}`);
-  }
-
-  return uniqueArray(notes).slice(0, 8).join('\n');
-}
-
-function enrichVenueWithSourceSignals(venue, sourceText = '') {
-  if (!venue) return venue;
-  const next = { ...venue };
-  next.environment = normalizeEnvironmentValues([...(next.environment || []), ...extractEnvironmentFeatures(sourceText)]);
-  next.device = normalizeDeviceValues([...(next.device || []), ...extractDeviceFeatures(sourceText)]);
-  next.service = uniqueArray([...(next.service || []), ...(next.pet || []), ...extractServiceFeatures(sourceText)]);
-  next.pet = next.service;
-  const foodCategories = extractFoodCategories([sourceText, ...(next.food || [])].join(' '));
-  if (foodCategories.length) next.food = foodCategories;
-  next.business = normalizeBusinessValues(next.business || [], [sourceText, ...(next.food || [])].join(' '));
-  const scenePersona = extractScenePersona(sourceText);
-  if (scenePersona.length) next.sceneType = scenePersona.join('、');
-  next.tags = uniqueArray([...(next.tags || []), ...(next.environment || []), ...(next.device || [])]);
-  next.customTags = uniqueArray([...(next.customTags || []), ...(next.food || []), ...(next.business || []), ...(next.service || []), ...(next.pet || [])]);
-  const sourceHours = extractFullHoursFromText(sourceText);
-  if (sourceHours && (!next.hours || sourceHours.length > String(next.hours).length + 4)) next.hours = sourceHours;
-  const notes = extractUsefulNotes(sourceText);
-  if (notes) next.notes = next.notes && !next.notes.includes(notes) ? `${next.notes}\n${notes}` : (next.notes || notes);
-  return sanitizeVenueFields(next);
+  };
 }
 
 function normalizeArray(value) {
@@ -1427,7 +1057,6 @@ function hasVenueData(venue) {
     venue.device?.length ||
     venue.food?.length ||
     venue.business?.length ||
-    venue.service?.length ||
     venue.pet?.length ||
     venue.tags?.length ||
     venue.customTags?.length ||
@@ -1490,7 +1119,7 @@ function normalizeAmapPoi(item = {}, query = '') {
     longitude: location?.longitude || null,
     rating: String(bizExt.rating || '').trim(),
     cost: String(bizExt.cost || '').trim(),
-    openTime: String(bizExt.opentime2 || bizExt.open_time || bizExt.openTime || bizExt.opentime || '').trim(),
+    openTime: String(bizExt.open_time || bizExt.openTime || bizExt.opentime || bizExt.opentime2 || '').trim(),
     photos,
     raw: item
   };
@@ -1663,19 +1292,15 @@ async function handleExtract(payload) {
     }
     const { note, sourceText } = resolved;
     const extractedVenue = await extractVenueWithDeepSeek(sourceText, payload.venue, debug);
-    const noteImages = normalizeArray(note?.images).map(cleanImageUrl).filter(Boolean);
+    const noteImages = normalizeArray(note?.images);
     const fallbackVenue = normalizeDianpingDetailVenue(note);
     const mergedExtractedVenue = mergeVenueWithFallback(extractedVenue, fallbackVenue);
-    const venueImages = normalizeArray(mergedExtractedVenue?.images).map(cleanImageUrl).filter(Boolean);
-    const images = channel === 'xiaohongshu' || channel === 'dianping'
-      ? uniqueArray([...noteImages, ...venueImages])
-      : uniqueArray([...venueImages, ...noteImages]);
-    const venue = mergedExtractedVenue
+    const venue = mergedExtractedVenue && noteImages.length
       ? {
         ...mergedExtractedVenue,
-        images
+        images: uniqueArray([...(mergedExtractedVenue.images || []), ...noteImages])
       }
-      : null;
+      : mergedExtractedVenue;
     return {
       code: 0,
       msg: 'ok',
