@@ -2606,6 +2606,10 @@
             nextVenue.membershipInfo = defaultVenue?.membershipInfo || '';
             changed = true;
           }
+          if (typeof nextVenue.service === 'undefined') {
+            nextVenue.service = Array.isArray(nextVenue.pet) ? nextVenue.pet : [];
+            changed = true;
+          }
           if (typeof nextVenue.channelLinks === 'undefined') {
             nextVenue.channelLinks = defaultVenue?.channelLinks || {};
             changed = true;
@@ -2621,8 +2625,17 @@
 
       migrateCurrentPick() {
         const currentPick = this.loadCurrentPick();
-        if (typeof currentPick.confirmedVenueIds !== 'undefined') return;
-        this.saveCurrentPick({ ...DEFAULT_CURRENT_PICK, ...currentPick, confirmedVenueIds: [] });
+        const nextPick = {
+          ...DEFAULT_CURRENT_PICK,
+          ...currentPick,
+          confirmedVenueIds: currentPick.confirmedVenueIds || []
+        };
+        nextPick.filterConditions = (nextPick.filterConditions || []).map((condition) => (condition === '宠物' ? '服务' : condition));
+        if (
+          typeof currentPick.confirmedVenueIds !== 'undefined' &&
+          JSON.stringify(nextPick.filterConditions) === JSON.stringify(currentPick.filterConditions || [])
+        ) return;
+        this.saveCurrentPick(nextPick);
       },
 
       loadHistory() {
@@ -2743,7 +2756,7 @@
           venue.device?.length ? `设备：${venue.device.join('、')}` : '',
           venue.food?.length ? `美食：${venue.food.join('、')}` : '',
           venue.business?.length ? `业态：${venue.business.join('、')}` : '',
-          venue.pet?.length ? `宠物：${venue.pet.join('、')}` : '',
+          (venue.service?.length || venue.pet?.length) ? `服务：${[...(venue.service || []), ...(venue.pet || [])].join('、')}` : '',
           venue.notes ? `备注：${venue.notes}` : '',
           detail.shopUrl || ''
         ].filter(Boolean).join('\n');
@@ -2760,6 +2773,7 @@
           device: [],
           food: [],
           business: [],
+          service: [],
           pet: [],
           tags: [],
           customTags: [],
@@ -2983,7 +2997,7 @@
         food: '',
         price: '',
         business: '',
-        pet: ''
+        service: ''
       },
       viewStep: 1,
       activeVenueId: '',
@@ -3122,7 +3136,7 @@
           { key: 'food', label: '美食', options: ['柠檬巴斯克'] },
           { key: 'price', label: '价格', options: prices },
           { key: 'business', label: '业态', options: ['纯咖啡', '日咖夜酒', '书店+咖啡'] },
-          { key: 'pet', label: '宠物', options: ['猫', '狗'] }
+          { key: 'service', label: '服务', options: ['免费柠檬水', '免费自取水', '提供纸巾', '宠物友好', '无需预约', '需现场等位'] }
         ];
       },
 
@@ -3134,11 +3148,20 @@
         const groups = this.getStarFilterGroups();
         const group = groups.find((item) => item.key === key);
         if (key === 'price') return this.formatPrice(venue);
-        const structuredValue = Array.isArray(venue[key]) ? venue[key].filter(Boolean) : [];
+        const structuredValue = key === 'service'
+          ? this.getVenueServiceValues(venue)
+          : (Array.isArray(venue[key]) ? venue[key].filter(Boolean) : []);
         if (structuredValue.length) return structuredValue.join('、');
         const tagText = this.getVenueTagText(venue);
         const matched = group?.options.filter((option) => tagText.includes(option)) || [];
         return matched.join('、') || '-';
+      },
+
+      getVenueServiceValues(venue = {}) {
+        return [...new Set([
+          ...(Array.isArray(venue.service) ? venue.service : []),
+          ...(Array.isArray(venue.pet) ? venue.pet : [])
+        ].map((item) => String(item || '').trim()).filter(Boolean))];
       },
 
       getVenueFieldEditValue(venue, key) {
@@ -3173,7 +3196,7 @@
           ['美食', this.getVenueFieldValue(venue, 'food')],
           ['价格', this.getVenueFieldValue(venue, 'price')],
           ['业态', this.getVenueFieldValue(venue, 'business')],
-          ['宠物', this.getVenueFieldValue(venue, 'pet')],
+          ['服务', this.getVenueFieldValue(venue, 'service')],
           ['备注', venue.notes || '-']
         ];
       },
@@ -3187,7 +3210,7 @@
         const device = this.parseTags(readText('device'));
         const food = this.parseTags(readText('food'));
         const business = this.parseTags(readText('business'));
-        const pet = this.parseTags(readText('pet'));
+        const service = this.parseTags(readText('service'));
         const amountText = readText('priceAmount');
         const amountMatch = amountText.match(/\d+(\.\d+)?/);
         const priceAmount = amountMatch ? Number(amountMatch[0]) : 0;
@@ -3202,9 +3225,10 @@
           device,
           food,
           business,
-          pet,
+          service,
+          pet: [],
           tags: [...new Set([...environment, ...device])],
-          customTags: [...new Set([...uncategorizedTags, ...food, ...business, ...pet])],
+          customTags: [...new Set([...uncategorizedTags, ...food, ...business, ...service])],
           price: {
             amount: priceAmount,
             unit: venue.price?.unit || '杯'
@@ -3219,7 +3243,7 @@
           if (key === 'price') {
             return String(Number(venue.price?.amount) || '') === value;
           }
-          return this.getVenueTagText(venue).includes(value);
+          return [this.getVenueTagText(venue), this.getVenueFieldValue(venue, key)].join(' ').includes(value);
         });
       },
 
@@ -3364,6 +3388,7 @@
           price: { amount: '', unit: '日' },
           tags: [],
           customTags: [],
+          service: [],
           menuInfo: '',
           membershipInfo: '',
           notes: '',
@@ -3495,6 +3520,8 @@
           },
           tags: this.parseTags(formData.get('tags') ?? existingVenue?.tags?.join('，') ?? ''),
           customTags: this.parseTags(formData.get('customTags') ?? existingVenue?.customTags?.join('，') ?? ''),
+          service: existingVenue ? this.getVenueServiceValues(existingVenue) : [],
+          pet: [],
           menuInfo: readField('menuInfo', existingVenue?.menuInfo || ''),
           membershipInfo: readField('membershipInfo', existingVenue?.membershipInfo || ''),
           notes: readField('notes', existingVenue?.notes || ''),
@@ -3876,6 +3903,8 @@
             price: { amount: 0, unit: this.step12Draft.price?.unit || '日' },
             tags: [],
             customTags: [],
+            service: [],
+            pet: [],
             menuInfo: '',
             membershipInfo: '',
             notes: '',
@@ -3895,6 +3924,8 @@
           price: { amount: 0, unit: venue.price?.unit || '日' },
           tags: [],
           customTags: [],
+          service: [],
+          pet: [],
           menuInfo: '',
           membershipInfo: '',
           notes: '',
@@ -3925,6 +3956,7 @@
           ['price', '价格'],
           ['tags', '标签'],
           ['customTags', '自定义标签'],
+          ['service', '服务'],
           ['menuInfo', '菜单'],
           ['membershipInfo', '办卡'],
           ['notes', '备注']
@@ -4000,8 +4032,8 @@
                 <input class="star-info-input" name="business" value="${UI.escape(this.getVenueFieldEditValue(venue, 'business'))}" placeholder="-">
               </label>
               <label class="star-info-row">
-                <strong>宠物</strong>
-                <input class="star-info-input" name="pet" value="${UI.escape(this.getVenueFieldEditValue(venue, 'pet'))}" placeholder="-">
+                <strong>服务</strong>
+                <input class="star-info-input" name="service" value="${UI.escape(this.getVenueFieldEditValue(venue, 'service'))}" placeholder="-">
               </label>
               <label class="star-info-row">
                 <strong>备注</strong>
@@ -4175,11 +4207,12 @@
             </div>
           </section>
         `;
+        this.scrollDateStripToActive();
         WeatherService.ensureWeather(currentPick);
       },
 
       getStep1Conditions() {
-        return ['环境', '设备', '美食', '价格', '业态', '周边', '宠物'];
+        return ['环境', '设备', '美食', '价格', '业态', '周边', '服务'];
       },
 
       getStartLocations(value) {
@@ -4252,7 +4285,8 @@
         const rows = [
           ['时间', venue.hours || '-'],
           ['地点', venue.address || '-'],
-          ...visibleConditions.map((condition) => [condition, this.getStep2ConditionValue(venue, condition)])
+          ...visibleConditions.map((condition) => [condition, this.getStep2ConditionValue(venue, condition)]),
+          ['备注', venue.notes || '-']
         ];
         return `
           <article class="pick-step2-info-card" aria-label="当前场地信息">
@@ -4274,6 +4308,7 @@
       getStep2ConditionValue(venue, condition) {
         if (condition === '价格') return StarManager.formatPrice(venue);
         if (condition === '业态') return this.getMatchedVenueTerms(venue, ['纯咖啡', '日咖夜酒', '书店+咖啡', venue.sceneType]).join('、') || venue.sceneType || '-';
+        if (condition === '服务') return StarManager.getVenueFieldValue(venue, 'service');
         if (condition === '美食') {
           if (Array.isArray(venue.food) && venue.food.length) return venue.food.join('、');
           if (venue.menuInfo) return venue.menuInfo;
@@ -4284,7 +4319,7 @@
           '设备': ['插座', '大桌', '音乐', '卫生间', '柠檬水', '可寄存'],
           '美食': ['柠檬巴斯克', '咖啡', '茶', '甜点', '抹茶', '焙茶', '轻食'],
           '周边': ['地铁', '停车', '商场', '公园', '学校', '五大道'],
-          '宠物': ['猫', '狗']
+          '服务': ['免费柠檬水', '免费自取水', '提供纸巾', '宠物友好', '无需预约', '需现场等位', '猫', '狗']
         };
         const matched = this.getMatchedVenueTerms(venue, optionsByCondition[condition] || []);
         if (matched.length) return matched.join('、');
@@ -4297,6 +4332,12 @@
           venue.menuInfo,
           venue.membershipInfo,
           venue.notes,
+          ...(venue.environment || []),
+          ...(venue.device || []),
+          ...(venue.food || []),
+          ...(venue.business || []),
+          ...(venue.service || []),
+          ...(venue.pet || []),
           ...(venue.tags || []),
           ...(venue.customTags || [])
         ].join(' ');
@@ -4365,7 +4406,7 @@
       },
 
       renderFilterTags(filterConditions, scoredVenues) {
-        const availableTags = new Set(scoredVenues.flatMap((item) => [...item.venue.tags, ...item.venue.customTags]));
+        const availableTags = new Set(scoredVenues.flatMap((item) => this.getVenueComparableTags(item.venue)));
         const tags = filterConditions.length ? filterConditions : ['暂无筛选条件'];
         return `
           <div class="tag-row">
@@ -4395,6 +4436,7 @@
                 <span>设备：${UI.escape(this.getStep2ConditionValue(venue, '设备'))}</span>
                 <span>美食：${UI.escape(this.getStep2ConditionValue(venue, '美食'))}</span>
                 <span>业态：${UI.escape(this.getStep2ConditionValue(venue, '业态'))}</span>
+                <span>服务：${UI.escape(this.getStep2ConditionValue(venue, '服务'))}</span>
               </div>
             </div>
             <div class="result-actions">
@@ -4407,7 +4449,7 @@
 
       getScoredVenues(venues, filterConditions) {
         return venues.map((venue) => {
-          const allTags = [...venue.tags, ...venue.customTags];
+          const allTags = this.getVenueComparableTags(venue);
           const matches = filterConditions.filter((condition) => allTags.includes(condition));
           const misses = filterConditions.filter((condition) => !allTags.includes(condition));
           const score = filterConditions.length
@@ -4484,6 +4526,29 @@
             </div>
           </div>
         `;
+      },
+
+      scrollDateStripToActive() {
+        window.requestAnimationFrame(() => {
+          const strip = document.querySelector('#tab-pick .date-strip');
+          const active = strip?.querySelector('.date-item.is-active');
+          if (!strip || !active) return;
+          const targetLeft = active.offsetLeft - (strip.clientWidth - active.clientWidth) / 2;
+          strip.scrollLeft = Math.max(0, targetLeft);
+        });
+      },
+
+      getVenueComparableTags(venue = {}) {
+        return [...new Set([
+          ...(venue.tags || []),
+          ...(venue.customTags || []),
+          ...(venue.environment || []),
+          ...(venue.device || []),
+          ...(venue.food || []),
+          ...(venue.business || []),
+          ...(venue.service || []),
+          ...(venue.pet || [])
+        ].map((item) => String(item || '').trim()).filter(Boolean))];
       },
 
       parseDateValue(value) {
@@ -4898,6 +4963,7 @@
           price: { amount: 0, unit: '日' },
           tags: [],
           customTags: [],
+          service: [],
           menuInfo: '',
           membershipInfo: '',
           notes: '',
@@ -5905,6 +5971,7 @@
           device: [],
           food: [],
           business: business ? [business] : [],
+          service: [],
           pet: [],
           tags: [],
           customTags: business ? [business] : [],
@@ -6141,6 +6208,10 @@
         const food = toArray(source.food || source.foods || source.menuItems || source.menu_items);
         const business = toArray(source.business || source.businessType || source.business_type);
         const pet = toArray(source.pet || source.pets);
+        const service = this.uniqueArray([
+          ...toArray(source.service || source.services || source.policy || source.policies),
+          ...pet
+        ]);
         const knownTagOptions = ['安静', '禁烟', '靠窗', '插座', '大桌', '音乐', '卫生间'];
         const tags = [...new Set([
           ...toArray(source.tags).filter((tag) => knownTagOptions.includes(tag)),
@@ -6151,7 +6222,7 @@
           ...toArray(source.customTags || source.custom_tags),
           ...food,
           ...business,
-          ...pet
+          ...service
         ])];
         return {
           name: source.name || source.title || '',
@@ -6166,6 +6237,7 @@
           device,
           food,
           business,
+          service,
           pet,
           tags,
           customTags,
@@ -6190,6 +6262,7 @@
           venue.device?.length ||
           venue.food?.length ||
           venue.business?.length ||
+          venue.service?.length ||
           venue.pet?.length ||
           venue.tags?.length ||
           venue.customTags?.length ||
@@ -6217,7 +6290,8 @@
           device: this.extractDevice(text),
           food: this.extractFood(text),
           business: this.extractBusiness(text),
-          pet: this.extractPet(text),
+          service: this.extractService(text),
+          pet: [],
           tags: this.extractTags(text),
           customTags: this.extractCustomTags(text),
           menuInfo: this.extractMenuInfo(lines),
@@ -6250,9 +6324,11 @@
         if (!Number(nextVenue.price?.amount) && (Number(extracted.price?.amount) || extracted.price?.text)) {
           nextVenue.price = extracted.price;
         }
-        ['environment', 'device', 'food', 'business', 'pet'].forEach((field) => {
+        ['environment', 'device', 'food', 'business', 'service'].forEach((field) => {
           nextVenue[field] = this.uniqueArray([...(nextVenue[field] || []), ...(extracted[field] || [])]);
         });
+        nextVenue.service = this.uniqueArray([...(nextVenue.service || []), ...(nextVenue.pet || []), ...(extracted.pet || [])]);
+        nextVenue.pet = [];
         nextVenue.tags = this.uniqueArray([
           ...(nextVenue.tags || []),
           ...(extracted.tags || []),
@@ -6264,7 +6340,7 @@
           ...(extracted.customTags || []),
           ...(nextVenue.food || []),
           ...(nextVenue.business || []),
-          ...(nextVenue.pet || [])
+          ...(nextVenue.service || [])
         ]);
         if ((!nextVenue.sceneType || nextVenue.sceneType === '其他') && extracted.sceneType) {
           nextVenue.sceneType = extracted.sceneType;
@@ -6294,9 +6370,11 @@
         if ((!baseVenue.sceneType || baseVenue.sceneType === '其他') && poiVenue.sceneType) {
           nextVenue.sceneType = poiVenue.sceneType;
         }
-        ['environment', 'device', 'food', 'business', 'pet'].forEach((field) => {
+        ['environment', 'device', 'food', 'business', 'service'].forEach((field) => {
           nextVenue[field] = this.uniqueArray([...(nextVenue[field] || []), ...(poiVenue[field] || [])]);
         });
+        nextVenue.service = this.uniqueArray([...(nextVenue.service || []), ...(nextVenue.pet || []), ...(poiVenue.pet || [])]);
+        nextVenue.pet = [];
         nextVenue.tags = this.uniqueArray([
           ...(nextVenue.tags || []),
           ...(poiVenue.tags || []),
@@ -6308,7 +6386,7 @@
           ...(poiVenue.customTags || []),
           ...(nextVenue.food || []),
           ...(nextVenue.business || []),
-          ...(nextVenue.pet || [])
+          ...(nextVenue.service || [])
         ]);
         if (poiVenue.geoPlace) nextVenue.geoPlace = poiVenue.geoPlace;
         nextVenue.images = this.uniqueArray([...(nextVenue.images || []), ...(poiVenue.images || [])]);
@@ -6332,9 +6410,11 @@
         if (!Number(merged.price?.amount) && !merged.price?.text && (Number(fallback.price?.amount) || fallback.price?.text)) {
           merged.price = fallback.price;
         }
-        ['environment', 'device', 'food', 'business', 'pet'].forEach((field) => {
+        ['environment', 'device', 'food', 'business', 'service'].forEach((field) => {
           merged[field] = this.uniqueArray([...(merged[field] || []), ...(fallback[field] || [])]);
         });
+        merged.service = this.uniqueArray([...(merged.service || []), ...(merged.pet || []), ...(fallback.pet || [])]);
+        merged.pet = [];
         merged.tags = this.uniqueArray([
           ...(merged.tags || []),
           ...(fallback.tags || []),
@@ -6346,7 +6426,7 @@
           ...(fallback.customTags || []),
           ...(merged.food || []),
           ...(merged.business || []),
-          ...(merged.pet || [])
+          ...(merged.service || [])
         ]);
         merged.images = this.uniqueArray([...(merged.images || []), ...(fallback.images || [])]);
         merged.notes = this.mergeTextBlock(merged.notes, fallback.notes);
@@ -6395,6 +6475,7 @@
           ['price', '价格'],
           ['tags', '标签'],
           ['customTags', '自定义标签'],
+          ['service', '服务'],
           ['menuInfo', '菜单'],
           ['membershipInfo', '办卡'],
           ['images', '照片'],
@@ -6523,12 +6604,25 @@
         return this.uniqueArray(values);
       },
 
+      extractService(text) {
+        const values = [];
+        if (/免费柠檬水|柠檬水/.test(text)) values.push('免费柠檬水');
+        if (/免费自取水|自取水|免费饮水|饮用水/.test(text)) values.push('免费自取水');
+        if (/纸巾|擦手纸|卫生纸/.test(text)) values.push('提供纸巾');
+        if (/马桶垫|一次性马桶垫/.test(text)) values.push('提供马桶垫');
+        if (/宠物友好|可带宠物|带狗|带猫/.test(text)) values.push('宠物友好');
+        if (/不可携带宠物|不能带宠物|禁止宠物/.test(text)) values.push('不可携带宠物');
+        if (/无需预约|不用预约/.test(text)) values.push('无需预约');
+        if (/现场等位|排队|等位/.test(text)) values.push('需现场等位');
+        return this.uniqueArray([...values, ...this.extractPet(text)]);
+      },
+
       extractTags(text) {
         return this.uniqueArray([...this.extractEnvironment(text), ...this.extractDevice(text)]);
       },
 
       extractCustomTags(text) {
-        const tags = [...this.extractFood(text), ...this.extractBusiness(text), ...this.extractPet(text)];
+        const tags = [...this.extractFood(text), ...this.extractBusiness(text), ...this.extractService(text)];
         if (/椅子|座椅|沙发/.test(text)) tags.push('椅子舒服');
         if (/停车|车位/.test(text)) tags.push('可停车');
         if (/地铁|公交/.test(text)) tags.push('交通方便');
