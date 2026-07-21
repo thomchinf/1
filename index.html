@@ -208,6 +208,27 @@
       color: var(--color-primary-dark);
     }
 
+    .inline-status {
+      display: none;
+      border: 1px solid rgba(95, 107, 74, 0.24);
+      border-radius: var(--radius-control);
+      background: #F7F3E9;
+      color: var(--color-primary-dark);
+      padding: var(--space-2) var(--space-3);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .inline-status.is-visible {
+      display: block;
+    }
+
+    .inline-status.is-error {
+      border-color: rgba(216, 95, 63, 0.28);
+      background: #FFF3ED;
+      color: #9C3F29;
+    }
+
     .search-field,
     .field {
       display: grid;
@@ -2508,6 +2529,9 @@
   <div id="modal-container" class="modal-container" aria-live="polite"></div>
 
   <script>
+    const XIAOHONGSHU_PROXY_URL = 'http://127.0.0.1:18061/prepare-xiaohongshu';
+    const XIAOHONGSHU_MAX_IMAGES = 9;
+
     const DEFAULT_VENUES = [
       {
         id: 'v_demo_001',
@@ -7621,9 +7645,10 @@
             详情
             <textarea id="record-output-text" rows="10">${UI.escape(text)}</textarea>
           </label>
+          <div id="record-output-status" class="inline-status" role="status"></div>
           <div class="modal-actions">
             <button class="primary-btn" type="button" data-history-action="share-record" data-id="${record.id}" data-channel="wechat">分享微信</button>
-            <button class="secondary-btn" type="button" data-history-action="share-record" data-id="${record.id}" data-channel="xiaohongshu">分享小红书</button>
+            <button id="record-xhs-publish-btn" class="secondary-btn" type="button" data-history-action="share-record" data-id="${record.id}" data-channel="xiaohongshu">打开并填写小红书</button>
           </div>
         `);
       },
@@ -7678,6 +7703,10 @@
       async shareRecord(recordId, channel = '') {
         const record = this.getSortedHistory().find((item) => item.id === recordId);
         if (!record) return;
+        if (channel === 'xiaohongshu') {
+          await this.publishXiaohongshuRecord(record);
+          return;
+        }
         const title = this.getPrimaryVenue(record)?.name || 'PickPick 记录';
         const editedText = document.getElementById('record-output-text')?.value.trim();
         const text = editedText || this.buildRecordShareText(record);
@@ -7698,6 +7727,131 @@
           if (error?.name === 'AbortError') return;
           UI.showStatus('分享失败，请稍后重试。');
         }
+      },
+
+      async publishXiaohongshuRecord(record) {
+        const editedText = document.getElementById('record-output-text')?.value.trim();
+        const content = editedText || this.buildRecordShareText(record);
+        const payload = this.buildXiaohongshuPayload(record, content);
+        const publishableImages = this.getXiaohongshuDraftImages(record);
+        const publishButton = document.getElementById('record-xhs-publish-btn');
+        if (publishButton) publishButton.disabled = true;
+        const imageLimitText = publishableImages.length > XIAOHONGSHU_MAX_IMAGES
+          ? `，已截取前 ${XIAOHONGSHU_MAX_IMAGES} 张`
+          : '';
+        this.showOutputStatus(`准备填写小红书草稿：${publishableImages.length} 张图片${imageLimitText}。`, 'success');
+        if (!payload.images.length) {
+          if (publishButton) publishButton.disabled = false;
+          this.showOutputStatus('小红书图文需要至少一张图片。当前已复制文案，请手动发布。');
+          await this.copyShareText(content, '小红书图文需要至少一张图片，已复制文案。');
+          return;
+        }
+        try {
+          this.showOutputStatus('正在打开并填写小红书草稿，请等待浏览器页面完成填充...', 'success');
+          UI.showStatus('正在打开并填写小红书草稿...', 'success');
+          const result = await this.callXiaohongshuProxy(payload);
+          if (result?.error) throw new Error(result.error.message || result.error);
+          if (result?.needsLogin) throw new Error(result.message || '请先登录小红书创作服务平台');
+          this.showOutputStatus('小红书草稿已打开并填写完成，请在浏览器确认后手动点击发布。', 'success');
+          UI.showStatus('小红书草稿已填写，请手动确认发布。', 'success');
+        } catch (error) {
+          this.showOutputStatus(`小红书草稿填写失败，已复制文案。${error?.message || ''}`.trim());
+          await this.copyShareText(content, `小红书草稿填写失败，已复制文案。${error?.message || ''}`.trim());
+        } finally {
+          if (publishButton) publishButton.disabled = false;
+        }
+      },
+
+      showOutputStatus(message, type = 'error') {
+        const status = document.getElementById('record-output-status');
+        if (!status) return;
+        status.textContent = message;
+        status.className = `inline-status is-visible${type === 'success' ? '' : ' is-error'}`;
+      },
+
+      buildXiaohongshuPayload(record, content) {
+        const venue = this.getPrimaryVenue(record);
+        const title = this.truncateText(venue?.name || record.title || 'PickPick 记录', 20);
+        const tags = this.uniqueArray([
+          venue?.sceneType,
+          ...(venue?.business || []),
+          ...(record.filterConditions || [])
+        ]).slice(0, 10);
+        return {
+          title,
+          content,
+          images: this.getXiaohongshuDraftImages(record, venue).slice(0, XIAOHONGSHU_MAX_IMAGES),
+          tags
+        };
+      },
+
+      getXiaohongshuDraftImages(record, venue = null) {
+        const sourceVenue = venue || this.getPrimaryVenue(record);
+        return this.getRecordDisplayPhotos(record, sourceVenue)
+          .filter((photo) => this.isXiaohongshuDraftImage(photo));
+      },
+
+      isXiaohongshuDraftImage(value) {
+        const text = String(value || '').trim();
+        if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(text)) return true;
+        return this.isMcpPublishableImage(text);
+      },
+
+      isMcpPublishableImage(value) {
+        const text = String(value || '').trim();
+        if (/^https?:\/\//i.test(text)) return true;
+        return /^[a-zA-Z]:[\\/]/.test(text) || /^\\\\/.test(text) || /^\//.test(text);
+      },
+
+      async callXiaohongshuProxy(payload) {
+        try {
+          const response = await this.fetchWithTimeout(XIAOHONGSHU_PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }, 120000);
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || data.code !== 0) {
+            throw new Error(data.msg || `proxy HTTP ${response.status}`);
+          }
+          return data.data || {};
+        } catch (error) {
+          const message = String(error?.message || '');
+          if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+            throw new Error('请先运行 start-xiaohongshu-proxy.cmd');
+          }
+          throw error;
+        }
+      },
+
+      async fetchWithTimeout(url, options, timeoutMs = 15000) {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+        try {
+          return await fetch(url, {
+            ...options,
+            signal: controller?.signal
+          });
+        } catch (error) {
+          if (error?.name === 'AbortError') throw new Error('连接小红书发布服务超时');
+          throw error;
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      },
+
+      async copyShareText(text, message) {
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+          }
+        } catch (error) {}
+        UI.showStatus(message, 'success');
+      },
+
+      truncateText(value, maxLength) {
+        const text = String(value || '').trim();
+        return text.length > maxLength ? text.slice(0, maxLength) : text;
       },
 
       saveRecordPatch(recordId, patch, shouldRender = true) {
