@@ -286,12 +286,51 @@
       box-shadow: none;
     }
 
+    .star-filter-stack {
+      display: grid;
+      gap: 6px;
+    }
+
     .star-filter-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
-      overflow-x: auto;
-      padding-bottom: 2px;
+      max-width: 100%;
+      overflow: visible;
+      padding: 0 2px 2px 0;
       scrollbar-width: none;
+    }
+
+    .star-filter-row + .star-filter-row {
+      margin-top: 0;
+    }
+
+    .star-filter-row.is-scene {
+      min-height: 28px;
+    }
+
+    .star-scene-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .star-scene-chip {
+      min-height: 26px;
+      border: 1px solid rgba(216, 208, 194, 0.86);
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.88);
+      color: var(--color-primary-dark);
+      padding: 0 10px;
+      font-size: 10px;
+      font-weight: 800;
+      box-shadow: 0 3px 10px rgba(47, 51, 43, 0.08);
+    }
+
+    .star-scene-chip.is-active {
+      border-color: rgba(95, 107, 74, 0.38);
+      background: #5F6B4A;
+      color: #FFFFFF;
     }
 
     .star-filter-row::-webkit-scrollbar {
@@ -309,6 +348,7 @@
 
     .star-filter-field select {
       width: 54px;
+      max-width: 100%;
       min-height: 26px;
       padding: 0 8px;
       border: 1px solid rgba(216, 208, 194, 0.86);
@@ -324,7 +364,7 @@
       position: relative;
       overflow: hidden;
       display: grid;
-      grid-template-rows: minmax(138px, 1fr) auto;
+      grid-template-rows: 166px auto;
       border: 1px solid var(--color-line);
       border-radius: var(--radius-card);
       background-position: center;
@@ -332,7 +372,7 @@
       box-shadow: var(--shadow-card);
       color: #FFFFFF;
       isolation: isolate;
-      min-height: 216px;
+      min-height: 256px;
     }
 
     .venue-card::before {
@@ -381,27 +421,52 @@
     }
 
     .venue-card-body {
+      position: relative;
+      z-index: 2;
+      grid-row: 2;
       align-self: end;
       display: grid;
-      gap: 6px;
+      gap: 4px;
       margin: var(--space-2);
       border: 1px solid rgba(255, 253, 248, 0.20);
       border-radius: 14px;
       background: rgba(47, 51, 43, 0.52);
-      padding: 9px 10px;
+      padding: 7px 9px;
       backdrop-filter: blur(10px);
     }
 
     .star-photo-label {
       position: absolute;
       left: 50%;
-      top: 38%;
+      top: 88px;
       z-index: 1;
-      color: rgba(255, 253, 248, 0.74);
+      display: grid;
+      place-items: center;
+      width: min(360px, calc(100% - 48px));
+      height: 140px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 253, 248, 0.34);
+      border-radius: 13px;
+      background: rgba(255, 253, 248, 0.22);
+      color: rgba(255, 253, 248, 0.82);
       font-size: 13px;
       font-weight: 800;
       transform: translate(-50%, -50%);
       pointer-events: none;
+      box-shadow: 0 10px 24px rgba(17, 17, 17, 0.10);
+    }
+
+    .star-photo-label.has-image {
+      background: rgba(255, 253, 248, 0.28);
+    }
+
+    .star-photo-label img {
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .star-card-remove {
@@ -431,7 +496,7 @@
     }
 
     .venue-card h3 {
-      font-size: 16px;
+      font-size: 15px;
     }
 
     .venue-meta,
@@ -444,8 +509,8 @@
 
     .venue-card .venue-meta {
       color: rgba(255, 255, 255, 0.84);
-      font-size: 12px;
-      line-height: 1.35;
+      font-size: 11px;
+      line-height: 1.25;
     }
 
     .scene-badge {
@@ -454,7 +519,7 @@
       background: rgba(255, 253, 248, 0.20);
       color: #FFFFFF;
       padding: 3px 8px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       white-space: nowrap;
       backdrop-filter: blur(10px);
@@ -522,9 +587,9 @@
 
     .venue-card .text-btn {
       width: auto;
-      min-width: 68px;
-      min-height: 28px;
-      padding: 0 14px;
+      min-width: 64px;
+      min-height: 26px;
+      padding: 0 12px;
     }
 
     .text-btn,
@@ -787,6 +852,10 @@
 
     .step2-nav .pick-arrow-btn:last-child {
       grid-column: 3;
+    }
+
+    .step2-nav .pick-arrow-btn[data-pick-action="finish-pick"] {
+      width: 50px;
     }
 
     .date-strip {
@@ -1760,12 +1829,21 @@
       accent-color: var(--color-primary);
     }
 
-    .result-refresh {
+    .result-delete-btn {
       position: absolute;
-      right: 10px;
-      top: 8px;
+      right: 8px;
+      top: 7px;
+      display: grid;
+      place-items: center;
+      width: 22px;
+      min-height: 22px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
       color: var(--color-text);
-      font-size: 13px;
+      padding: 0;
+      font-size: 15px;
+      font-weight: 800;
       line-height: 1;
     }
 
@@ -2139,18 +2217,31 @@
       bottom: 11px;
     }
 
+    .recent-item-wrap {
+      position: relative;
+      min-height: 30px;
+    }
+
     .recent-item {
       position: relative;
       display: grid;
       grid-template-columns: 44px minmax(0, 1.05fr) minmax(52px, 0.72fr) minmax(0, 1.1fr);
       gap: 8px;
       align-items: center;
+      width: 100%;
       min-height: 30px;
       border: 0;
       background: transparent;
       color: var(--color-text);
       padding: 0 8px 0 16px;
       text-align: left;
+      transition: background 140ms ease, padding-right 140ms ease;
+    }
+
+    .recent-item-wrap.is-delete-open .recent-item {
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.56);
+      padding-right: 56px;
     }
 
     .recent-item::before {
@@ -2182,6 +2273,31 @@
     .recent-item.is-placeholder {
       color: var(--color-muted);
       opacity: 0.58;
+    }
+
+    .recent-delete-btn {
+      position: absolute;
+      right: 2px;
+      top: 50%;
+      z-index: 4;
+      min-height: 22px;
+      border: 0;
+      border-radius: 999px;
+      background: #C4553A;
+      color: #FFFFFF;
+      padding: 0 9px;
+      font-size: 10px;
+      font-weight: 900;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-50%) scale(0.94);
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .recent-item-wrap.is-delete-open .recent-delete-btn {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(-50%) scale(1);
     }
 
     .recent-date,
@@ -2532,70 +2648,9 @@
     const XIAOHONGSHU_PROXY_URL = 'http://127.0.0.1:18061/prepare-xiaohongshu';
     const XIAOHONGSHU_MAX_IMAGES = 9;
 
-    const DEFAULT_VENUES = [
-      {
-        id: 'v_demo_001',
-        name: '静思自习室',
-        address: '朝阳区建国路88号',
-        hours: '09:00-22:30',
-        price: { amount: 39, unit: '日' },
-        tags: ['有插座', '安静', '大桌子', '22点后营业'],
-        customTags: ['椅子舒服'],
-        menuInfo: '瓶装水 3 元，简餐 18-28 元，可自带饮品。',
-        membershipInfo: '日卡 39 元，周卡 199 元，月卡 599 元。',
-        notes: '下午三点后人会变多，靠窗区光线最好。',
-        images: [],
-        visitCount: 2,
-        createdAt: '2026-07-06',
-        sceneType: '自习室'
-      },
-      {
-        id: 'v_demo_002',
-        name: '光合作用咖啡',
-        address: '海淀区中关村南路12号',
-        hours: '08:30-21:30',
-        price: { amount: 32, unit: '杯' },
-        tags: ['有咖啡', '靠窗', '有插座'],
-        customTags: ['绿植多'],
-        menuInfo: '美式 22 元，拿铁 28 元，贝果 26 元，轻食沙拉 36 元。',
-        membershipInfo: '充值 300 送 30，工作日 10 次咖啡卡 199 元。',
-        notes: '适合轻工作，下午可能有聊天声。',
-        images: [],
-        visitCount: 1,
-        createdAt: '2026-07-06',
-        sceneType: '咖啡馆'
-      },
-      {
-        id: 'v_demo_003',
-        name: '一格共享书房',
-        address: '东城区和平里西街9号',
-        hours: '07:30-23:00',
-        price: { amount: 45, unit: '日' },
-        tags: ['安静', '有插座', '大桌子', '22点后营业'],
-        customTags: ['可寄存'],
-        menuInfo: '免费饮水，咖啡机 8 元/杯，泡面 12 元。',
-        membershipInfo: '日卡 45 元，10 次卡 399 元，月卡含固定座位。',
-        notes: '座位密度低，适合长时间专注。',
-        images: [],
-        visitCount: 0,
-        createdAt: '2026-07-06',
-        sceneType: '自习室'
-      }
-    ];
+    const DEFAULT_VENUES = [];
 
-    const DEFAULT_HISTORY = [
-      {
-        id: 'cr_demo_001',
-        date: '2026-07-06',
-        userLocation: '朝阳区望京',
-        weather: '晴 28°C',
-        venueIds: ['v_demo_001', 'v_demo_002'],
-        chosenVenueId: 'v_demo_001',
-        filterConditions: ['有插座', '安静'],
-        notes: '静思自习室更适合论文冲刺。',
-        photos: []
-      }
-    ];
+    const DEFAULT_HISTORY = [];
 
     const DEFAULT_CURRENT_PICK = {
       date: '2026-07-07',
@@ -2604,7 +2659,7 @@
       originPlace: null,
       weather: null,
       selectedVenueIds: [],
-      filterConditions: ['有插座', '安静'],
+      filterConditions: [],
       customConditions: [],
       copiedInfo: {},
       confirmedVenueIds: [],
@@ -2620,7 +2675,8 @@
         venues: 'venues',
         history: 'history',
         currentPick: 'currentPick',
-        seeded: 'pickpickSeeded'
+        seeded: 'pickpickSeeded',
+        historyReset: 'pickpickHistoryReset20260721'
       },
 
       init() {
@@ -2629,7 +2685,10 @@
           this.saveHistory(DEFAULT_HISTORY);
           this.saveCurrentPick(DEFAULT_CURRENT_PICK);
           this.write(this.keys.seeded, true);
+          this.write(this.keys.historyReset, true);
         } else {
+          this.resetHistoryForEmptyStart();
+          this.removeDemoData();
           this.migrateVenues();
           this.migrateCurrentPick();
         }
@@ -2661,6 +2720,43 @@
 
       saveVenues(venues) {
         return this.write(this.keys.venues, venues);
+      },
+
+      resetHistoryForEmptyStart() {
+        if (this.read(this.keys.historyReset, false)) return;
+        this.saveHistory([]);
+        this.write(this.keys.historyReset, true);
+      },
+
+      removeDemoData() {
+        const isDemoVenue = (id = '') => String(id).startsWith('v_demo_');
+        const isDemoRecord = (id = '') => String(id).startsWith('cr_demo_');
+        const venues = this.loadVenues();
+        const nextVenues = venues.filter((venue) => !isDemoVenue(venue.id));
+        if (nextVenues.length !== venues.length) this.saveVenues(nextVenues);
+
+        const history = this.loadHistory();
+        const nextHistory = history.filter((record) => !isDemoRecord(record.id));
+        if (nextHistory.length !== history.length) this.saveHistory(nextHistory);
+
+        const currentPick = this.loadCurrentPick();
+        const selectedVenueIds = (currentPick.selectedVenueIds || []).filter((id) => !isDemoVenue(id));
+        const confirmedVenueIds = (currentPick.confirmedVenueIds || []).filter((id) => !isDemoVenue(id));
+        const copiedInfo = Object.fromEntries(
+          Object.entries(currentPick.copiedInfo || {}).filter(([id]) => !isDemoVenue(id))
+        );
+        if (
+          selectedVenueIds.length !== (currentPick.selectedVenueIds || []).length ||
+          confirmedVenueIds.length !== (currentPick.confirmedVenueIds || []).length ||
+          Object.keys(copiedInfo).length !== Object.keys(currentPick.copiedInfo || {}).length
+        ) {
+          this.saveCurrentPick({
+            ...currentPick,
+            selectedVenueIds,
+            confirmedVenueIds,
+            copiedInfo
+          });
+        }
       },
 
       migrateVenues() {
@@ -3063,6 +3159,7 @@
     const StarManager = {
       query: '',
       starFilters: {
+        sceneType: '',
         environment: '',
         device: '',
         food: '',
@@ -3153,29 +3250,51 @@
 
       renderStarFilters(venues) {
         const groups = this.getStarFilterGroups(venues);
+        const sceneGroups = groups.filter((group) => group.key === 'sceneType');
+        const otherGroups = groups.filter((group) => group.key !== 'sceneType');
+        const sceneOptions = ['全部', ...(sceneGroups[0]?.options || [])];
+        const renderGroup = (group) => `
+          <label class="star-filter-field">
+            <span>${UI.escape(group.label)}</span>
+            <select data-filter-key="${UI.escape(group.key)}" aria-label="${UI.escape(group.label)}">
+              <option value="">${UI.escape(group.label)}</option>
+              ${group.options.map((option) => `
+                <option value="${UI.escape(option)}" ${this.starFilters[group.key] === option ? 'selected' : ''}>${UI.escape(option)}</option>
+              `).join('')}
+            </select>
+          </label>
+        `;
         return `
-          <div class="star-filter-row" aria-label="Star 筛选">
-            ${groups.map((group) => `
-              <label class="star-filter-field">
-                <span>${UI.escape(group.label)}</span>
-                <select data-filter-key="${UI.escape(group.key)}" aria-label="${UI.escape(group.label)}">
-                  <option value="">${UI.escape(group.label)}</option>
-                  ${group.options.map((option) => `
-                    <option value="${UI.escape(option)}" ${this.starFilters[group.key] === option ? 'selected' : ''}>${UI.escape(option)}</option>
-                  `).join('')}
-                </select>
-              </label>
-            `).join('')}
+          <div class="star-filter-stack">
+            <div class="star-filter-row is-scene" aria-label="Star 场景筛选">
+              <div class="star-scene-filter">
+                ${sceneOptions.map((option) => {
+                  const value = option === '全部' ? '' : option;
+                  const active = (this.starFilters.sceneType || '') === value;
+                  return `
+                    <button class="star-scene-chip${active ? ' is-active' : ''}" type="button" data-action="star-scene-filter" data-value="${UI.escape(value)}">
+                      ${UI.escape(option)}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+            <div class="star-filter-row" aria-label="Star 其他筛选">
+              ${otherGroups.map(renderGroup).join('')}
+            </div>
           </div>
         `;
       },
 
       renderVenueCard(venue, isSelected = false) {
         const background = this.getVenueBackground(venue);
+        const firstImage = this.getRenderableImages(venue.images || [])[0] || '';
         return `
           <article class="venue-card" style="background-image: url('${background}')">
             <button class="star-card-remove" type="button" data-action="delete-venue" data-id="${venue.id}" aria-label="删除 ${UI.escape(venue.name)}">−</button>
-            <span class="star-photo-label">图片</span>
+            <span class="star-photo-label${firstImage ? ' has-image' : ''}">
+              ${firstImage ? `<img src="${UI.escape(firstImage)}" alt="${UI.escape(venue.name)} 图片 1" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : '图片'}
+            </span>
             <div class="venue-card-body">
               <div class="venue-card-header">
                 <div>
@@ -3202,6 +3321,7 @@
           .sort((a, b) => a - b)
           .map(String))];
         return [
+          { key: 'sceneType', label: '场景', options: ['自习室', '咖啡馆', '其他'] },
           { key: 'environment', label: '环境', options: ['安静', '禁烟', '靠窗'] },
           { key: 'device', label: '设备', options: ['插座', '大桌', '音乐', '卫生间'] },
           { key: 'food', label: '美食', options: ['柠檬巴斯克'] },
@@ -3218,6 +3338,7 @@
       getVenueFieldValue(venue, key) {
         const groups = this.getStarFilterGroups();
         const group = groups.find((item) => item.key === key);
+        if (key === 'sceneType') return venue.sceneType || '-';
         if (key === 'price') return this.formatPrice(venue);
         const structuredValue = key === 'service'
           ? this.getVenueServiceValues(venue)
@@ -3314,6 +3435,7 @@
           if (key === 'price') {
             return String(Number(venue.price?.amount) || '') === value;
           }
+          if (key === 'sceneType') return (venue.sceneType || '') === value;
           return [this.getVenueTagText(venue), this.getVenueFieldValue(venue, key)].join(' ').includes(value);
         });
       },
@@ -3403,11 +3525,27 @@
           'delete-venue': () => this.deleteVenue(id),
           'add-to-pick': () => this.addToPick(id),
           'apply-poi-candidate': () => this.applyPoiCandidate(trigger?.dataset.index),
+          'star-scene-filter': () => {
+            this.starFilters = {
+              ...this.starFilters,
+              sceneType: trigger?.dataset.value || ''
+            };
+            this.render();
+          },
           'back-star-list': () => this.goStep1(),
           'confirm-star-info': () => this.confirmStep12(),
           'clear-star-info': () => this.clearStep12Info(),
           'clear-search': () => {
             this.query = '';
+            this.starFilters = {
+              sceneType: '',
+              environment: '',
+              device: '',
+              food: '',
+              price: '',
+              business: '',
+              service: ''
+            };
             this.render();
           },
           'close-modal': () => UI.closeModal()
@@ -3691,13 +3829,12 @@
       },
 
       getVenueBackground(venue) {
-        if (venue.images?.length) return UI.escape(venue.images[0]);
         const palettes = {
-          '自习室': ['#244D43', '#2DCD9B', '书桌', '专注'],
-          '咖啡馆': ['#5A4636', '#D7A86E', '咖啡', '靠窗'],
-          '其他': ['#334155', '#94A3B8', '地点', '对比']
+          '自习室': ['#34462E', '#42543A'],
+          '咖啡馆': ['#34462E', '#4E5A3F'],
+          '其他': ['#34462E', '#46513A']
         };
-        const [base, accent, label, subLabel] = palettes[venue.sceneType] || palettes['其他'];
+        const [base, accent] = palettes[venue.sceneType] || palettes['其他'];
         const svg = `
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
             <defs>
@@ -3707,12 +3844,7 @@
               </linearGradient>
             </defs>
             <rect width="800" height="480" fill="url(#bg)"/>
-            <rect x="62" y="78" width="676" height="324" rx="34" fill="rgba(255,255,255,0.16)"/>
-            <circle cx="642" cy="145" r="54" fill="rgba(255,255,255,0.22)"/>
-            <rect x="108" y="292" width="420" height="26" rx="13" fill="rgba(255,255,255,0.32)"/>
-            <rect x="108" y="336" width="280" height="22" rx="11" fill="rgba(255,255,255,0.22)"/>
-            <text x="108" y="174" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="54" font-weight="700">${label}</text>
-            <text x="112" y="232" fill="rgba(255,255,255,0.76)" font-family="Arial, sans-serif" font-size="30">${subLabel}</text>
+            <rect width="800" height="480" fill="rgba(255,255,255,0.03)"/>
           </svg>
         `.trim();
         return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
@@ -4204,6 +4336,7 @@
         pickTab.addEventListener('pointermove', (event) => this.handleCupPointerMove(event));
         pickTab.addEventListener('pointerup', (event) => this.endCupDrag(event));
         pickTab.addEventListener('pointercancel', (event) => this.cancelCupDrag(event));
+        document.getElementById('modal-container').addEventListener('click', (event) => this.handleModalClick(event));
         window.addEventListener('pointermove', (event) => this.handleCupPointerMove(event));
         window.addEventListener('pointerup', (event) => this.endCupDrag(event));
         window.addEventListener('pointercancel', (event) => this.cancelCupDrag(event));
@@ -4422,19 +4555,18 @@
           return;
         }
         const visibleVenues = selectedVenues.map((venue) => ({ venue, matches: [], misses: [], score: 100 }));
-        const confirmedVenueIds = currentPick.confirmedVenueIds?.length
-          ? currentPick.confirmedVenueIds
-          : visibleVenues.slice(0, 1).map((item) => item.venue.id);
-        if (!currentPick.confirmedVenueIds?.length && confirmedVenueIds.length) {
+        const visibleVenueIds = new Set(visibleVenues.map((item) => item.venue.id));
+        const confirmedVenueIds = (currentPick.confirmedVenueIds || []).filter((id) => visibleVenueIds.has(id));
+        if (confirmedVenueIds.length !== (currentPick.confirmedVenueIds || []).length) {
           Storage.saveCurrentPick({ ...currentPick, confirmedVenueIds });
           currentPick.confirmedVenueIds = confirmedVenueIds;
         }
         document.getElementById('tab-pick').innerHTML = `
           <div class="step2-nav" aria-label="Pick 结果导航">
             <button class="pick-arrow-btn" type="button" data-pick-action="back-step-2" aria-label="返回 2.2">←</button>
-            <button class="pick-arrow-btn" type="button" data-pick-action="finish-pick" aria-label="完成并进入 My">→</button>
+            <button class="pick-arrow-btn" type="button" data-pick-action="finish-pick" aria-label="确认加入记录">sure</button>
           </div>
-          ${UI.renderHeader({ id: 'pick-result-title', text: 'pick result' }, '地图筛选与确认')}
+          ${UI.renderHeader({ id: 'pick-result-title', text: 'pick result' }, '')}
           <section class="panel pick-board">
             <div class="step3-shell">
               ${this.renderMapPlaceholder(visibleVenues, currentPick)}
@@ -4497,8 +4629,8 @@
         return `
           <article class="result-card">
             <div class="result-card-head">
-              <input class="result-check" type="checkbox" data-pick-action="toggle-confirmed" data-id="${venue.id}" ${checked ? 'checked' : ''} aria-label="显示 ${UI.escape(venue.name)}">
-              <span class="result-refresh" aria-hidden="true">↻</span>
+              <input class="result-check" type="checkbox" data-pick-action="toggle-confirmed" data-id="${venue.id}" ${checked ? 'checked' : ''} aria-label="选择 ${UI.escape(venue.name)} 加入 My 记录">
+              <button class="result-delete-btn" type="button" data-pick-action="remove-venue" data-id="${venue.id}" aria-label="删除 ${UI.escape(venue.name)}">×</button>
               <h3>${UI.escape(venue.name)}</h3>
               <div class="result-card-info">
                 <span>${UI.escape(venue.address || '-')}</span>
@@ -4512,7 +4644,7 @@
             </div>
             <div class="result-actions">
               <p class="result-copy-count">${copiedCount}/2</p>
-              <button class="result-star-btn" type="button" data-pick-action="save-result-star" data-id="${venue.id}" aria-label="收藏到 Star">♛</button>
+              <button class="result-star-btn" type="button" data-pick-action="save-result-star" data-id="${venue.id}" aria-label="进入 Star">♛</button>
             </div>
           </article>
         `;
@@ -4730,9 +4862,18 @@
           'set-date': () => this.setDate(trigger.dataset.date),
           'go-step-2': () => this.goStep2(),
           'go-step-3': () => this.goStep3(),
-          'finish-pick': () => this.finishPick()
+          'finish-pick': () => this.openFinishConfirm()
         };
         if (actions[action]) actions[action]();
+      },
+
+      handleModalClick(event) {
+        const trigger = event.target.closest('[data-pick-action]');
+        if (!trigger) return;
+        const actions = {
+          'confirm-finish-pick': () => this.confirmFinishPick()
+        };
+        if (actions[trigger.dataset.pickAction]) actions[trigger.dataset.pickAction]();
       },
 
       setDate(date) {
@@ -5064,8 +5205,8 @@
             ? { ...item, visitCount: (Number(item.visitCount) || 0) + 1 }
             : item
         )));
-        UI.showStatus('已收藏到 Star。', 'success');
-        this.render();
+        StarManager.openStep12ForVenue(venueId);
+        UI.showStatus('已进入 Star。', 'success');
       },
 
       getSelectedVenues(currentPick) {
@@ -5133,7 +5274,8 @@
       removeVenue(venueId) {
         const currentPick = Storage.loadCurrentPick();
         this.updateCurrentPick({
-          selectedVenueIds: currentPick.selectedVenueIds.filter((id) => id !== venueId)
+          selectedVenueIds: currentPick.selectedVenueIds.filter((id) => id !== venueId),
+          confirmedVenueIds: (currentPick.confirmedVenueIds || []).filter((id) => id !== venueId)
         });
       },
 
@@ -5162,10 +5304,8 @@
 
       goStep3() {
         const currentPick = Storage.loadCurrentPick();
-        const selectedVenues = this.getSelectedVenues(currentPick);
-        const confirmedVenueIds = currentPick.confirmedVenueIds?.length
-          ? currentPick.confirmedVenueIds
-          : selectedVenues.slice(0, 1).map((venue) => venue.id);
+        const selectedVenueIds = new Set(currentPick.selectedVenueIds || []);
+        const confirmedVenueIds = (currentPick.confirmedVenueIds || []).filter((id) => selectedVenueIds.has(id));
         Storage.saveCurrentPick({
           ...currentPick,
           currentStep: 3,
@@ -5177,12 +5317,63 @@
         this.render();
       },
 
+      openFinishConfirm() {
+        const currentPick = Storage.loadCurrentPick();
+        const selectedVenues = this.getSelectedVenues(currentPick);
+        const confirmedVenueIds = (currentPick.confirmedVenueIds || []).filter((id) => selectedVenues.some((venue) => venue.id === id));
+        const confirmedVenues = confirmedVenueIds
+          .map((id) => selectedVenues.find((venue) => venue.id === id))
+          .filter(Boolean);
+        if (!confirmedVenues.length) {
+          UI.showStatus('请先勾选至少一个地点。');
+          return;
+        }
+        UI.openModal(`
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Pick</p>
+              <h2 class="modal-title">确认加入记录</h2>
+            </div>
+            <button class="modal-close" type="button" data-action="close-modal" aria-label="关闭">×</button>
+          </div>
+          <div class="star-info-list">
+            <div class="star-info-row">
+              <strong>日期</strong>
+              <span>${UI.escape(currentPick.date || '-')}</span>
+            </div>
+            <div class="star-info-row">
+              <strong>地点</strong>
+              <span>${UI.escape(confirmedVenues.map((venue) => venue.name).join('、'))}</span>
+            </div>
+            <div class="star-info-row">
+              <strong>时间</strong>
+              <span>${UI.escape(confirmedVenues.map((venue) => venue.hours).filter(Boolean).join('；') || '-')}</span>
+            </div>
+            <div class="star-info-row">
+              <strong>地址</strong>
+              <span>${UI.escape(confirmedVenues.map((venue) => venue.address).filter(Boolean).join('；') || '-')}</span>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="primary-btn" type="button" data-pick-action="confirm-finish-pick">sure</button>
+            <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
+          </div>
+        `);
+      },
+
+      confirmFinishPick() {
+        UI.closeModal();
+        this.finishPick();
+      },
+
       finishPick() {
         const currentPick = Storage.loadCurrentPick();
         const selectedVenues = this.getSelectedVenues(currentPick);
-        const confirmedVenueIds = currentPick.confirmedVenueIds?.length
-          ? currentPick.confirmedVenueIds
-          : selectedVenues.slice(0, 1).map((venue) => venue.id);
+        const confirmedVenueIds = (currentPick.confirmedVenueIds || []).filter((id) => selectedVenues.some((venue) => venue.id === id));
+        if (!confirmedVenueIds.length) {
+          UI.showStatus('请先勾选至少一个地点。');
+          return;
+        }
         const date = currentPick.date || new Date().toISOString().slice(0, 10);
         const history = Storage.loadHistory();
         const existing = history.find((record) => record.date === date);
@@ -5192,8 +5383,8 @@
           date,
           userLocation: currentPick.userLocation || existing?.userLocation || '',
           weather: currentPick.weather?.text || currentPick.weather || existing?.weather || '',
-          venueIds: selectedVenues.map((venue) => venue.id),
-          chosenVenueId: confirmedVenueIds[0] || selectedVenues[0]?.id || '',
+          venueIds: confirmedVenueIds,
+          chosenVenueId: confirmedVenueIds[0] || '',
           filterConditions: currentPick.filterConditions || [],
           notes: existing?.notes || '',
           calendarPhoto: existing?.calendarPhoto || '',
@@ -6739,6 +6930,14 @@
         startY: 0,
         triggered: false
       },
+      recentDeleteRecordId: '',
+      recentClickBlockId: '',
+      recentLongPress: {
+        timer: null,
+        id: '',
+        startX: 0,
+        startY: 0
+      },
       bookDrag: {
         active: false,
         startX: 0,
@@ -6880,13 +7079,17 @@
         const time = record ? this.getRecordTime(record) : '';
         const address = venue?.address || record?.userLocation || '';
         const action = record ? 'open-record-detail' : 'select-record';
+        const deleteOpen = record && this.recentDeleteRecordId === record.id;
         return `
-          <button class="recent-item${row.isActive ? ' is-active' : ''}${record ? '' : ' is-placeholder'}" type="button" data-history-action="${action}" data-id="${record?.id || ''}" data-date="${row.date}" data-index="${record ? row.index : ''}">
-            <span class="recent-date">${UI.escape(this.formatShortDate(row.date))}</span>
-            <span class="recent-venue">${UI.escape(venue?.name || '')}</span>
-            <span class="recent-time">${UI.escape(time || '')}</span>
-            <span class="recent-place">${UI.escape(address || '')}</span>
-          </button>
+          <div class="recent-item-wrap${deleteOpen ? ' is-delete-open' : ''}">
+            <button class="recent-item${row.isActive ? ' is-active' : ''}${record ? '' : ' is-placeholder'}" type="button" data-history-action="${action}" data-id="${record?.id || ''}" data-date="${row.date}" data-index="${record ? row.index : ''}">
+              <span class="recent-date">${UI.escape(this.formatShortDate(row.date))}</span>
+              <span class="recent-venue">${UI.escape(venue?.name || '')}</span>
+              <span class="recent-time">${UI.escape(time || '')}</span>
+              <span class="recent-place">${UI.escape(address || '')}</span>
+            </button>
+            ${record ? `<button class="recent-delete-btn" type="button" data-history-action="delete-record-row" data-id="${record.id}" aria-label="删除 ${UI.escape(venue?.name || record.date || '记录')}">删除</button>` : ''}
+          </div>
         `;
       },
 
@@ -7041,6 +7244,10 @@
         const trigger = event.target.closest('[data-history-action]');
         if (!trigger) return;
         const action = trigger.dataset.historyAction;
+        if (action === 'delete-record-row') {
+          this.deleteRecordById(trigger.dataset.id);
+          return;
+        }
         if (action === 'select-record') {
           if (this.calendarLongPress.triggered && trigger.dataset.date === this.calendarLongPress.date) {
             this.calendarLongPress.triggered = false;
@@ -7058,6 +7265,16 @@
           return;
         }
         if (action === 'open-record-detail') {
+          if (this.recentClickBlockId === trigger.dataset.id) {
+            this.recentClickBlockId = '';
+            return;
+          }
+          if (this.recentDeleteRecordId === trigger.dataset.id) {
+            this.recentDeleteRecordId = '';
+            this.render();
+            return;
+          }
+          this.recentDeleteRecordId = '';
           this.openRecordDetail(trigger.dataset.id, trigger.dataset.date);
           return;
         }
@@ -7165,6 +7382,10 @@
       },
 
       handlePointerDown(event) {
+        const recentItem = event.target.closest('.recent-item[data-history-action="open-record-detail"]');
+        if (recentItem) {
+          this.startRecentLongPress(event, recentItem);
+        }
         const calendarDay = event.target.closest('.calendar-day:not(.is-empty)');
         if (calendarDay) {
           this.startCalendarLongPress(event, calendarDay);
@@ -7172,14 +7393,17 @@
       },
 
       handlePointerMove(event) {
+        this.moveRecentLongPress(event);
         this.moveCalendarLongPress(event);
       },
 
       handlePointerUp() {
+        this.endRecentLongPress();
         this.endCalendarLongPress();
       },
 
       handlePointerCancel() {
+        this.cancelRecentLongPress();
         this.cancelCalendarLongPress();
       },
 
@@ -7220,6 +7444,41 @@
         if (!match) return new Date();
         const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
         return Number.isNaN(date.getTime()) ? new Date() : date;
+      },
+
+      startRecentLongPress(event, rowButton) {
+        this.cancelRecentLongPress();
+        const id = rowButton.dataset.id || '';
+        if (!id) return;
+        this.recentLongPress = {
+          timer: window.setTimeout(() => {
+            this.recentDeleteRecordId = id;
+            this.recentClickBlockId = id;
+            this.recentLongPress.timer = null;
+            this.render();
+          }, 560),
+          id,
+          startX: event.clientX,
+          startY: event.clientY
+        };
+      },
+
+      moveRecentLongPress(event) {
+        if (!this.recentLongPress.timer) return;
+        const movedX = Math.abs(event.clientX - this.recentLongPress.startX);
+        const movedY = Math.abs(event.clientY - this.recentLongPress.startY);
+        if (movedX > 10 || movedY > 10) this.cancelRecentLongPress();
+      },
+
+      endRecentLongPress() {
+        if (!this.recentLongPress.timer) return;
+        window.clearTimeout(this.recentLongPress.timer);
+        this.recentLongPress = { timer: null, id: '', startX: 0, startY: 0 };
+      },
+
+      cancelRecentLongPress() {
+        if (this.recentLongPress.timer) window.clearTimeout(this.recentLongPress.timer);
+        this.recentLongPress = { timer: null, id: '', startX: 0, startY: 0 };
       },
 
       startCalendarLongPress(event, dayButton) {
@@ -7712,20 +7971,20 @@
         const text = editedText || this.buildRecordShareText(record);
         const channelName = channel === 'xiaohongshu' ? '小红书' : '微信';
         try {
-          if (navigator.share) {
-            await navigator.share({ title, text });
-            UI.showStatus(`已打开${channelName}分享面板。`, 'success');
-            return;
-          }
           if (navigator.clipboard?.writeText) {
             await navigator.clipboard.writeText(text);
+            if (channel === 'wechat') {
+              window.location.href = 'weixin://';
+              UI.showStatus('微信分享内容已复制，请在微信好友聊天中粘贴发送。', 'success');
+              return;
+            }
             UI.showStatus(`${channelName}分享内容已复制，可以手动粘贴。`, 'success');
             return;
           }
-          UI.showStatus('当前浏览器不支持直接分享，请手动复制记录内容。');
+          UI.showStatus('当前浏览器不支持复制，请手动复制记录内容到微信。');
         } catch (error) {
           if (error?.name === 'AbortError') return;
-          UI.showStatus('分享失败，请稍后重试。');
+          UI.showStatus('微信分享内容复制失败，请手动复制。');
         }
       },
 
@@ -7934,11 +8193,22 @@
         const history = this.getSortedHistory();
         const record = history[this.activeRecordIndex];
         if (!record) return;
-        const nextHistory = Storage.loadHistory().filter((item) => item.id !== record.id);
+        this.deleteRecordById(record.id);
+      },
+
+      deleteRecordById(recordId = '') {
+        if (!recordId) return;
+        const sortedHistory = this.getSortedHistory();
+        const deletedIndex = sortedHistory.findIndex((record) => record.id === recordId);
+        const nextHistory = Storage.loadHistory().filter((item) => item.id !== recordId);
         if (!Storage.saveHistory(nextHistory)) return;
         const nextSorted = this.getSortedHistory();
-        this.activeRecordIndex = Math.min(Math.max(0, this.activeRecordIndex - 1), Math.max(0, nextSorted.length - 1));
-        this.activeDate = nextSorted[this.activeRecordIndex]?.date || this.formatDateValue(new Date());
+        const nextIndex = Math.min(Math.max(0, deletedIndex), Math.max(0, nextSorted.length - 1));
+        this.activeRecordIndex = nextSorted.length ? nextIndex : -1;
+        this.activeDate = nextSorted[nextIndex]?.date || this.activeDate || this.formatDateValue(new Date());
+        this.recentDeleteRecordId = '';
+        this.recentClickBlockId = '';
+        this.cancelRecentLongPress();
         UI.showStatus('记录已删除。', 'success');
         this.render();
       },
