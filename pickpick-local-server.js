@@ -1,12 +1,14 @@
 const childProcess = require('child_process');
 const fs = require('fs');
 const http = require('http');
+const os = require('os');
 const path = require('path');
 
 const rootDir = __dirname;
 const preferredPort = Number(process.env.PICKPICK_PORT) || 4173;
 const maxPort = preferredPort + 40;
-const host = '127.0.0.1';
+const listenHost = process.env.PICKPICK_HOST || '0.0.0.0';
+const browserHost = '127.0.0.1';
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -32,7 +34,7 @@ function openBrowser(url) {
 }
 
 function resolveRequestPath(requestUrl) {
-  const parsedUrl = new URL(requestUrl, `http://${host}`);
+  const parsedUrl = new URL(requestUrl, `http://${browserHost}`);
   const pathname = decodeURIComponent(parsedUrl.pathname);
   const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
   const filePath = path.resolve(rootDir, relativePath);
@@ -81,6 +83,15 @@ function handleRequest(request, response) {
   });
 }
 
+function getLanUrls(port) {
+  const interfaces = os.networkInterfaces();
+  return Object.values(interfaces)
+    .flat()
+    .filter(Boolean)
+    .filter((entry) => entry.family === 'IPv4' && !entry.internal)
+    .map((entry) => `http://${entry.address}:${port}/`);
+}
+
 function listen(port) {
   const server = http.createServer(handleRequest);
   server.on('error', (error) => {
@@ -91,11 +102,18 @@ function listen(port) {
     console.error('[PickPick] Server failed:', error.message);
     process.exitCode = 1;
   });
-  server.listen(port, host, () => {
-    const url = `http://${host}:${port}/`;
-    console.log(`[PickPick] Local server: ${url}`);
+  server.listen(port, listenHost, () => {
+    const localUrl = `http://${browserHost}:${port}/`;
+    const lanUrls = getLanUrls(port);
+    console.log(`[PickPick] Local server: ${localUrl}`);
+    if (lanUrls.length) {
+      console.log('[PickPick] Phone URLs on the same Wi-Fi:');
+      lanUrls.forEach((url) => console.log(`  ${url}`));
+    } else {
+      console.log('[PickPick] No LAN IPv4 address found. Check Wi-Fi connection.');
+    }
     console.log('[PickPick] Close this window to stop the local server.');
-    openBrowser(url);
+    openBrowser(localUrl);
   });
 }
 
