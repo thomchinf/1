@@ -2195,6 +2195,17 @@
       display: none;
     }
 
+    .channel-screenshot-input {
+      display: none;
+    }
+
+    .channel-screenshot-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
     .recent-board {
       position: relative;
       display: grid;
@@ -3181,6 +3192,32 @@
       }
     };
 
+    const ImageTools = {
+      compressImage(file, options = {}) {
+        const maxSize = Number(options.maxSize) || 1200;
+        const quality = Number(options.quality) || 0.72;
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error('image failed'));
+            image.onload = () => {
+              const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.max(1, Math.round(image.width * scale));
+              canvas.height = Math.max(1, Math.round(image.height * scale));
+              const context = canvas.getContext('2d');
+              context.drawImage(image, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            image.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    };
+
     const StarManager = {
       query: '',
       starFilters: {
@@ -3214,8 +3251,10 @@
         starTab.addEventListener('pointermove', (event) => this.handlePointerMove(event));
         starTab.addEventListener('pointerup', () => this.handlePointerUp());
         starTab.addEventListener('pointercancel', () => this.handlePointerCancel());
-        document.getElementById('modal-container').addEventListener('click', (event) => this.handleModalClick(event));
-        document.getElementById('modal-container').addEventListener('submit', (event) => this.handleSubmit(event));
+        const modalContainer = document.getElementById('modal-container');
+        modalContainer.addEventListener('click', (event) => this.handleModalClick(event));
+        modalContainer.addEventListener('change', (event) => this.handleModalChange(event));
+        modalContainer.addEventListener('submit', (event) => this.handleSubmit(event));
       },
 
       render() {
@@ -3525,6 +3564,14 @@
         this.runAction(trigger.dataset.action, trigger.dataset.id, trigger);
       },
 
+      handleModalChange(event) {
+        const input = event.target.closest('input[data-channel-screenshot]');
+        if (!input) return;
+        const files = Array.from(input.files || []);
+        this.handleChannelScreenshotUpload(input, files);
+        input.value = '';
+      },
+
       handlePointerDown(event) {
         const item = event.target.closest('.image-gallery-item[data-image-index]');
         if (!item || event.target.closest('.image-gallery-delete')) return;
@@ -3615,6 +3662,73 @@
           button.textContent = button.dataset.originalText;
           delete button.dataset.originalText;
         }
+      },
+
+      async handleChannelScreenshotUpload(input, files) {
+        const form = input?.closest('form');
+        const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+        if (!imageFiles.length) {
+          this.setChannelExtractStatus(form, '请选择图片文件。', { error: true });
+          UI.showStatus('请选择图片文件。');
+          return;
+        }
+        input.disabled = true;
+        this.setChannelExtractStatus(form, `正在保存 ${imageFiles.length} 张截图...`);
+        UI.showStatus('正在保存截图...', 'success');
+        try {
+          const compressedImages = await Promise.all(imageFiles.map((file) => ImageTools.compressImage(file, {
+            maxSize: 1400,
+            quality: 0.74
+          })));
+          const saved = this.saveChannelScreenshots(input.dataset.owner, input.dataset.venueId, compressedImages);
+          if (!saved) {
+            this.setChannelExtractStatus(form, '截图保存失败，请先确认场地存在。', { error: true });
+            UI.showStatus('截图保存失败，请先确认场地存在。');
+            return;
+          }
+          const message = `已保存 ${compressedImages.length} 张截图到场地图片。`;
+          this.setChannelExtractStatus(form, message);
+          UI.showStatus(message, 'success');
+        } catch (error) {
+          console.error('[PickPick] channel screenshot upload failed', error);
+          this.setChannelExtractStatus(form, '截图处理失败，请换一张图片重试。', { error: true });
+          UI.showStatus('截图处理失败，请换一张图片重试。');
+        } finally {
+          input.disabled = false;
+        }
+      },
+
+      saveChannelScreenshots(owner, venueId, images = []) {
+        if (!venueId || !images.length) return false;
+        const mergeImages = (venue) => ({
+          ...venue,
+          images: AIExtractor.uniqueArray([...(venue.images || []), ...images])
+        });
+
+        if (owner === 'star' && this.step12Draft?.id === venueId) {
+          this.step12Draft = mergeImages(this.readStep12Form(this.step12Draft));
+          this.imageDeleteIndex = -1;
+          this.renderStep12();
+          return true;
+        }
+
+        const venues = Storage.loadVenues();
+        const venue = venues.find((item) => item.id === venueId);
+        if (!venue) return false;
+        const baseVenue = owner === 'star' && this.viewStep === 2 && this.activeVenueId === venueId
+          ? this.readStep12Form(venue)
+          : venue;
+        const nextVenue = mergeImages(baseVenue);
+        if (!Storage.saveVenues(venues.map((item) => (item.id === venueId ? nextVenue : item)))) return false;
+        this.imageDeleteIndex = -1;
+        if (owner === 'pick') {
+          if (PickManager.viewStep === 2 || PickManager.viewStep === 3) PickManager.render();
+        } else if (this.viewStep === 2 && this.activeVenueId === venueId) {
+          this.renderStep12();
+        } else if (this.viewStep === 1) {
+          this.renderList();
+        }
+        return true;
       },
 
       async handleSubmit(event) {
@@ -4037,6 +4151,7 @@
         const venue = this.getStep12Venue();
         if (!venue) return;
         const channelName = this.getChannelName(channel);
+        const screenshotInputId = `channel-screenshot-star-${UI.escape(channel)}-${UI.escape(venue.id)}`;
         const dianpingSearchButton = channel === 'dianping'
           ? `<button class="secondary-btn" type="button" data-action="open-dianping-search" data-query="${UI.escape(venue.name || query || '')}" data-city="${UI.escape(venue.address || '')}">打开大众点评</button>`
           : '';
@@ -4055,6 +4170,11 @@
               链接/复制内容
               <textarea name="link" rows="5" placeholder="粘贴 ${UI.escape(channelName)} 链接或页面复制内容">${UI.escape(venue.channelLinks?.[channel] || '')}</textarea>
             </label>
+            <div class="form-actions">
+              <label class="secondary-btn channel-screenshot-label" for="${screenshotInputId}">上传截图</label>
+              <input id="${screenshotInputId}" class="channel-screenshot-input" type="file" accept="image/*" multiple data-channel-screenshot="true" data-owner="star" data-venue-id="${UI.escape(venue.id)}" data-channel="${UI.escape(channel)}">
+            </div>
+            <p class="placeholder-text">截图会先保存到场地图片，后续可作为识别兜底。</p>
             <div class="form-actions">
               <button class="primary-btn" type="submit">保存并提取</button>
               <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
@@ -5260,6 +5380,7 @@
           dianping: '大众点评'
         };
         const channelName = channelNames[channel] || '渠道';
+        const screenshotInputId = `channel-screenshot-pick-${UI.escape(channel)}-${UI.escape(venueId)}`;
         const dianpingSearchButton = channel === 'dianping'
           ? `<button class="secondary-btn" type="button" data-action="open-dianping-search" data-query="${UI.escape(venue.name || query || '')}" data-city="${UI.escape([venue.address, currentPick.userLocation].filter(Boolean).join(' '))}">打开大众点评</button>`
           : '';
@@ -5279,6 +5400,11 @@
               链接/复制内容
               <textarea name="link" rows="5" placeholder="每行粘贴一个 ${UI.escape(channelName)} 链接，或粘贴页面复制内容">${UI.escape(copiedInfo[channel] || '')}</textarea>
             </label>
+            <div class="form-actions">
+              <label class="secondary-btn channel-screenshot-label" for="${screenshotInputId}">上传截图</label>
+              <input id="${screenshotInputId}" class="channel-screenshot-input" type="file" accept="image/*" multiple data-channel-screenshot="true" data-owner="pick" data-venue-id="${UI.escape(venueId)}" data-channel="${UI.escape(channel)}">
+            </div>
+            <p class="placeholder-text">截图会先保存到场地图片，后续可作为识别兜底。</p>
             <div class="form-actions">
               <button class="primary-btn" type="submit">保存并提取</button>
               <button class="secondary-btn" type="button" data-action="close-modal">取消</button>
@@ -8458,26 +8584,7 @@
       },
 
       compressImage(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onerror = () => reject(new Error('read failed'));
-          reader.onload = () => {
-            const image = new Image();
-            image.onerror = () => reject(new Error('image failed'));
-            image.onload = () => {
-              const maxSize = 1200;
-              const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
-              const canvas = document.createElement('canvas');
-              canvas.width = Math.max(1, Math.round(image.width * scale));
-              canvas.height = Math.max(1, Math.round(image.height * scale));
-              const context = canvas.getContext('2d');
-              context.drawImage(image, 0, 0, canvas.width, canvas.height);
-              resolve(canvas.toDataURL('image/jpeg', 0.72));
-            };
-            image.src = reader.result;
-          };
-          reader.readAsDataURL(file);
-        });
+        return ImageTools.compressImage(file);
       },
 
       removeActiveRecord() {
