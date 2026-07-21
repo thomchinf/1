@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from .filters import build_fallback_summary, extract_finance_info, extract_paper_info, infer_category, score_article
+from pydantic import BaseModel, Field
+
+from .filters import infer_industry_fallback, infer_entity_fallback, infer_content_type
 from .models import Article
-from .utils import extract_json_objects, trim_text
+from .utils import extract_json_objects, split_sentences, trim_text
 
 try:
     import dashscope
@@ -14,13 +17,57 @@ except ImportError:  # pragma: no cover
     dashscope = None
 
 
-VALID_CATEGORIES = {
-    "ai_application",
-    "ai_model",
-    "ai_safety",
-    "ai_investment",
-    "research_paper",
-}
+# ============ V5.0：LLM输出Schema ============
+class ArticleAnalysis(BaseModel):
+    """V5.0：LLM分析输出Schema"""
+    industry: str = Field(description="行业分类，必须是9个行业之一")
+    entity: str = Field(description="核心公司名或产品名")
+    summary: str = Field(description="100-200字中文摘要")
+    importance_score: int = Field(description="重要性评分0-100", ge=0, le=100)
+
+
+# ============ V5.0：辅助函数 ============
+def clean_entity(entity: str, industry: str) -> str:
+    """清洗entity字段，移除无效字符和格式"""
+    # 1. 空值检查
+    if not entity or entity in ("无", "None", "null", ""):
+        return industry
+
+    # 2. 去除首尾空白
+    entity = entity.strip()
+
+    # 3. 只保留中文字符、英文字母、数字、小数点、连接符
+    cleaned = re.sub(r'[^一-龥a-zA-Z0-9.·-]', '', entity)
+
+    # 4. 清洗后为空则用行业名
+    if not cleaned:
+        return industry
+
+    # 5. 长度截断（超过20字符）
+    if len(cleaned) > 20:
+        cleaned = cleaned[:20]
+
+    return cleaned
+
+
+def normalize_summary(summary: str, content: str, min_len: int = 50, max_len: int = 200) -> str:
+    """规范化summary长度"""
+    # 1. 空值检查
+    if not summary or not summary.strip():
+        summary = content[:100] if content else ""
+
+    summary = summary.strip()
+
+    # 2. 低于最小长度：拼接正文前100字
+    if len(summary) < min_len:
+        extra = content[:100] if content else ""
+        summary = summary + "。" + extra if summary else extra
+
+    # 3. 高于最大长度：截断并加省略号
+    if len(summary) > max_len:
+        summary = summary[:max_len] + "..."
+
+    return summary
 
 
 class NewsAnalyzer:
@@ -30,19 +77,18 @@ class NewsAnalyzer:
         self.progress_callback = progress_callback
         llm_config = config.get("llm", {})
         self.enabled = bool(llm_config.get("enabled", True))
-        self.model = llm_config.get("model", "qwen-turbo-latest")
+        self.model = llm_config.get("model", "qwen-turbo")
         self.api_key_env = llm_config.get("api_key_env", "DASHSCOPE_API_KEY")
         self.temperature = llm_config.get("temperature", 0.2)
         self.top_p = llm_config.get("top_p", 0.8)
-        self.max_workers = llm_config.get("max_workers", 4)
-        self.filtering = config.get("filtering", {})
-        summary_cfg = config.get("summary", {})
-        quality_cfg = config.get("quality", {})
-        self.summary_min_chars = int(summary_cfg.get("min_chars", 100))
-        self.summary_max_chars = int(summary_cfg.get("max_chars", 300))
-        self.min_quality_score = int(quality_cfg.get("min_score", 68))
+        self.max_workers = int(llm_config.get("max_workers", 4))
+        self.timeout = int(llm_config.get("timeout", 60))
+        self.retry_times = int(llm_config.get("retry_times", 2))
+        self.circuit_break_threshold = int(llm_config.get("circuit_break_threshold", 5))
+        self.circuit_break_pause = int(llm_config.get("circuit_break_pause", 30))
         self._api_key = os.getenv(self.api_key_env, "")
         self._llm_available = self.enabled and bool(self._api_key) and dashscope is not None
+        self._consecutive_failures = 0
 
     @property
     def llm_available(self) -> bool:
@@ -53,19 +99,15 @@ class NewsAnalyzer:
             return []
 
         if not self._llm_available:
-            self.logger.info("未检测到可用的 Qwen API，切换到规则摘要模式。")
-            fallback_results: list[Article] = []
-            total = max(len(articles), 1)
-            for index, article in enumerate(articles, start=1):
-                fallback_results.append(self._apply_fallback(article))
-                self._report_progress(index, total, f"规则模式摘要处理中（{index}/{total}）...")
-            return fallback_results
+            self.logger.info("未检测到可用的 Qwen API，切换到规则模式。")
+            return [self._apply_fallback(article) for article in articles]
 
         results: list[Article] = []
         total = max(len(articles), 1)
         completed = 0
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_map = {executor.submit(self._analyze_single, article): article for article in articles}
+            future_map = {executor.submit(self._analyze_single_with_retry, article): article for article in articles}
             for future in as_completed(future_map):
                 article = future_map[future]
                 try:
@@ -74,44 +116,59 @@ class NewsAnalyzer:
                     self.logger.warning("Qwen 分析失败，已回退到规则模式：%s | %s", article.url, exc)
                     results.append(self._apply_fallback(article))
                 completed += 1
-                self._report_progress(completed, total, f"Qwen 摘要与翻译处理中（{completed}/{total}）...")
+                self._report_progress(completed, total, f"Qwen 分析处理中（{completed}/{total}）...")
         return results
 
-    def _analyze_single(self, article: Article) -> Article:
-        system_prompt = (
-            "你是一名用于政府内部晨报的AI产业资讯分析助手。"
-            "请基于给定资讯，输出严格的 JSON 对象，不要输出任何解释、markdown 或代码块。"
-        )
-        user_prompt = f"""
-请阅读以下资讯，并用中文输出 JSON，字段必须完整：
-{{
-  "title_zh": "中文标题，若原标题已是中文可保持不变",
-  "category": "只能是 ai_application / ai_model / ai_safety / ai_investment / research_paper 之一",
-  "importance_score": 0-100 的整数，
-  "quality_score": 0-100 的整数，
-  "quality_reason": "一句中文说明，解释资讯是否值得进入日报",
-  "summary": "{self.summary_min_chars}-{self.summary_max_chars}字中文摘要，适合内部简报，英文内容必须转成中文表述",
-  "key_points": ["2-4条中文要点"],
-  "tags": ["最多4个标签"],
-  "finance_info": {{
-    "company": "",
-    "round": "",
-    "amount": "",
-    "investors": "",
-    "business": ""
-  }},
-  "paper_info": {{
-    "venue": "",
-    "institution": "",
-    "takeaway": ""
-  }}
-}}
+    def _analyze_single_with_retry(self, article: Article) -> Article:
+        """带重试和熔断的LLM分析"""
+        for attempt in range(self.retry_times + 1):
+            try:
+                result = self._analyze_single(article)
+                self._consecutive_failures = 0
+                return result
+            except Exception as exc:
+                if attempt < self.retry_times:
+                    self.logger.warning("LLM调用失败，重试中（第%d次）：%s", attempt + 2, exc)
+                    import time
+                    time.sleep(2)
+                else:
+                    self.logger.warning("LLM调用连续失败，触发兜底：%s", exc)
+                    self._consecutive_failures += 1
+                    if self._consecutive_failures >= self.circuit_break_threshold:
+                        self.logger.warning("连续%d次失败，暂停%d秒", self.circuit_break_threshold, self.circuit_break_pause)
+                        import time
+                        time.sleep(self.circuit_break_pause)
+                        self._consecutive_failures = 0
+                    raise
+        return self._apply_fallback(article)
 
-资讯标题：{article.title}
+    def _analyze_single(self, article: Article) -> Article:
+        """V5.0：LLM分析单篇文章"""
+        system_prompt = (
+            "你是一名AI产业资讯分析助手。请根据给定资讯，输出严格的JSON对象，不要输出任何解释、markdown或代码块。"
+        )
+        user_prompt = f"""请判断以下文章属于哪个行业（只选一个）：
+电子商务、智能汽车、企业服务、人工智能、旅游出行、生活服务、文娱传媒、硬科技、新能源
+
+同时提取文章中最核心的公司名或产品名作为主体：
+- 如果是公司动态类，提取公司名
+- 如果是产品动态类，提取产品名
+- 如果没有明确的主体，则输出行业名本身
+- 只输出1个最核心的主体
+
+按以下标准对文章重要性打分（0-100）：
+85-100分：重大事件（重大政策出台、巨头并购、颠覆性技术突破）
+70-84分：重要动态（头部公司财报发布、核心高管变动、战略调整）
+50-69分：一般新闻（普通产品更新、常规业务进展）
+50分以下：简讯（日常运营动态、非关键信息）
+
+输出JSON格式：
+{{"industry": "行业名", "entity": "主体名", "summary": "摘要", "importance_score": 分数}}
+
+文章标题：{article.title}
 来源：{article.source_name}
 发布时间：{article.published_at.isoformat() if article.published_at else "未知"}
-正文摘要：{trim_text(article.snippet, 500)}
-正文内容：{trim_text(article.body_text, 4000)}
+正文内容：{trim_text(article.body_text, 2000)}
 """
 
         response = dashscope.Generation.call(
@@ -124,67 +181,63 @@ class NewsAnalyzer:
             result_format="message",
             temperature=self.temperature,
             top_p=self.top_p,
+            timeout=self.timeout,
         )
 
         content = self._extract_message_content(response)
-        payloads = extract_json_objects(content)
-        payload = payloads[0] if payloads else {}
-        if not payload:
-            raise ValueError(f"无法解析 Qwen 返回内容：{content[:200]}")
 
-        article.title_zh = trim_text(payload.get("title_zh") or article.title, 80)
-        if article.forced_category in VALID_CATEGORIES:
-            article.category = article.forced_category
-        else:
-            category = str(payload.get("category", "")).strip()
-            article.category = category if category in VALID_CATEGORIES else infer_category(article, self.filtering)
-        fallback_summary, fallback_points = build_fallback_summary(
-            article,
-            min_chars=self.summary_min_chars,
-            max_chars=self.summary_max_chars,
-        )
-        article.summary = trim_text(payload.get("summary") or fallback_summary, self.summary_max_chars + 20)
-        article.key_points = self._normalize_list(payload.get("key_points")) or fallback_points
-        article.tags = self._normalize_list(payload.get("tags"), max_items=4)
-        article.finance_info = self._normalize_mapping(payload.get("finance_info"))
-        article.paper_info = self._normalize_mapping(payload.get("paper_info"))
-        article.metadata["quality_reason"] = trim_text(str(payload.get("quality_reason", "")).strip(), 100)
-
-        raw_score = payload.get("importance_score", 0)
+        # V5.0：Pydantic校验
         try:
-            article.importance_score = max(0.0, min(float(raw_score), 100.0))
-        except (TypeError, ValueError):
-            article.importance_score = score_article(article, self.filtering)
+            payloads = extract_json_objects(content)
+            payload = payloads[0] if payloads else {}
+            if not payload:
+                raise ValueError(f"无法解析LLM返回内容：{content[:200]}")
 
-        try:
-            quality_score = max(0, min(int(payload.get("quality_score", 0)), 100))
-        except (TypeError, ValueError):
-            quality_score = self._fallback_quality_score(article)
-        article.metadata["quality_score"] = quality_score
+            # Pydantic校验
+            analysis = ArticleAnalysis(**payload)
 
-        if article.category == "ai_investment" and not any(article.finance_info.values()):
-            article.finance_info = extract_finance_info(article)
-        if article.category == "research_paper" and not any(article.paper_info.values()):
-            article.paper_info = extract_paper_info(article)
+            # V5.0：新字段赋值
+            article.industry = analysis.industry
+            article.entity = clean_entity(analysis.entity, analysis.industry)
+            article.summary = normalize_summary(analysis.summary, article.body_text)
+            article.importance_score = float(analysis.importance_score)
+
+            # V5.0：内容类型推断
+            article.content_type = infer_content_type(article)
+
+        except Exception as exc:
+            self.logger.warning("Pydantic校验失败，触发兜底：%s", exc)
+            raise
+
+        # 兜底：用规则补充
+        if not getattr(article, 'industry', None):
+            article.industry = infer_industry_fallback(article)
+        if not getattr(article, 'entity', None):
+            article.entity = infer_entity_fallback(article, article.industry)
+        if not getattr(article, 'summary', None):
+            article.summary = normalize_summary("", article.body_text)
+        if not getattr(article, 'content_type', None):
+            article.content_type = infer_content_type(article)
+
+        # V5.0：元数据
+        article.metadata["quality_reason"] = "LLM分析"
+        article.metadata["fallback_triggered"] = False
+
         return article
 
     def _apply_fallback(self, article: Article) -> Article:
-        summary, key_points = build_fallback_summary(
-            article,
-            min_chars=self.summary_min_chars,
-            max_chars=self.summary_max_chars,
-        )
-        article.title_zh = article.title if article.locale.startswith("zh") else ""
-        article.summary = summary
-        article.key_points = key_points
-        article.category = infer_category(article, self.filtering)
-        article.importance_score = score_article(article, self.filtering)
-        article.metadata["quality_score"] = self._fallback_quality_score(article)
-        article.metadata["quality_reason"] = "规则模式下按正文长度、时效性和关键词命中进行质量估计。"
-        if article.category == "ai_investment":
-            article.finance_info = extract_finance_info(article)
-        if article.category == "research_paper":
-            article.paper_info = extract_paper_info(article)
+        """V5.0：兜底处理"""
+        # 兜底推断
+        article.industry = infer_industry_fallback(article)
+        article.entity = infer_entity_fallback(article, article.industry)
+        article.summary = normalize_summary("", article.body_text)
+        article.importance_score = 50.0  # 兜底默认50分
+        article.content_type = infer_content_type(article)
+
+        # V5.0：元数据
+        article.metadata["quality_reason"] = "规则兜底"
+        article.metadata["fallback_triggered"] = True
+
         return article
 
     def _extract_message_content(self, response: Any) -> str:
@@ -210,34 +263,6 @@ class NewsAnalyzer:
                         )
                     return str(content)
         return str(response)
-
-    def _normalize_list(self, value: Any, max_items: int = 4) -> list[str]:
-        if isinstance(value, list):
-            return [trim_text(str(item).strip(), 60) for item in value if str(item).strip()][:max_items]
-        return []
-
-    def _normalize_mapping(self, value: Any) -> dict[str, str]:
-        if not isinstance(value, dict):
-            return {}
-        return {str(key): trim_text(str(item).strip(), 60) for key, item in value.items() if str(item).strip()}
-
-    def _fallback_quality_score(self, article: Article) -> int:
-        score = 40
-        if len(article.body_text) >= 500:
-            score += 18
-        elif len(article.body_text) >= 250:
-            score += 10
-        if article.published_at:
-            score += 12
-        if article.source_weight >= 1.2:
-            score += 10
-        elif article.source_weight >= 1.1:
-            score += 6
-        if len(article.title) >= 16:
-            score += 4
-        if article.category in {"ai_model", "ai_safety", "research_paper"}:
-            score += 6
-        return min(score, 100)
 
     def _report_progress(self, completed: int, total: int, message: str) -> None:
         if not self.progress_callback:

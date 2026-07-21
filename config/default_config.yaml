@@ -31,7 +31,7 @@ quality:
 llm:
   enabled: true
   provider: qwen
-  model: qwen-turbo-latest
+  model: qwen-turbo
   api_key_env: DASHSCOPE_API_KEY
   temperature: 0.2
   top_p: 0.8
@@ -484,3 +484,282 @@ sources:
     assume_relevant: true
     forced_category: "research_paper"
     skip_hydration: true
+
+  # === V5.0 新增数据源 ===
+  # 电子商务（行业1）
+  - name: "亿邦动力"
+    region: "domestic"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://www.ebrun.com/"
+    url: "https://www.ebrun.com/rss/"
+    locale: "zh"
+    source_weight: 1.25
+    max_items: 10
+    assume_relevant: false
+    article_selectors:
+      - "article"
+      - "main"
+      - ".article-content"
+
+  - name: "京东投资者关系"
+    region: "domestic"
+    enabled: true
+    kind: "html"
+    homepage_url: "https://ir.jd.com/news-releases"
+    url: "https://ir.jd.com/news-releases"
+    locale: "zh"
+    source_weight: 1.20
+    max_items: 5
+    assume_relevant: true
+    listing_selectors:
+      - "a[href*='/news-releases/']"
+    include_patterns:
+      - "/news-releases/"
+    article_selectors:
+      - "article"
+      - "main"
+      - ".release-content"
+
+  - name: "小米投资者关系"
+    region: "domestic"
+    enabled: true
+    kind: "html"
+    homepage_url: "https://ir.mi.com"
+    url: "https://ir.mi.com"
+    locale: "zh"
+    source_weight: 1.15
+    max_items: 5
+    assume_relevant: true
+    listing_selectors:
+      - "a[href*='/news-releases/']"
+    include_patterns:
+      - "/news-releases/"
+    article_selectors:
+      - "article"
+      - "main"
+
+  # 智能汽车（行业2）
+  - name: "蔚来投资者关系"
+    region: "domestic"
+    enabled: true
+    kind: "html"
+    homepage_url: "https://ir.nio.com/news-events/events"
+    url: "https://ir.nio.com/news-events/events"
+    locale: "zh"
+    source_weight: 1.20
+    max_items: 5
+    assume_relevant: true
+    listing_selectors:
+      - "a[href*='/news/']"
+    include_patterns:
+      - "/news/"
+    article_selectors:
+      - "article"
+      - "main"
+      - ".news-detail"
+
+  # 企业服务（行业3）
+  - name: "雷峰网SaaS"
+    region: "domestic"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://www.leiphone.com/"
+    url: "https://www.leiphone.com/feed"
+    locale: "zh"
+    source_weight: 1.18
+    max_items: 10
+    assume_relevant: false
+    article_selectors:
+      - "article"
+      - "main"
+      - ".article-content"
+
+  # 人工智能（行业4）
+  - name: "OpenAI官方博客"
+    region: "foreign"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://openai.com/news/"
+    url: "https://openai.com/news/rss.xml"
+    locale: "en"
+    source_weight: 1.35
+    max_items: 10
+    assume_relevant: true
+    article_selectors:
+      - "article"
+      - "main"
+      - ".post-content"
+
+  - name: "Google DeepMind博客"
+    region: "foreign"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://deepmind.google/blog/"
+    url: "https://deepmind.google/blog/rss.xml"
+    locale: "en"
+    source_weight: 1.30
+    max_items: 10
+    assume_relevant: true
+    article_selectors:
+      - "article"
+      - "main"
+      - ".blog-post"
+
+  - name: "Google AI博客"
+    region: "foreign"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://blog.google/technology/ai/"
+    url: "https://blog.google/technology/ai/rss/"
+    locale: "en"
+    source_weight: 1.28
+    max_items: 10
+    assume_relevant: true
+    article_selectors:
+      - "article"
+      - "main"
+      - ".content"
+
+  - name: "Hugging Face博客"
+    region: "foreign"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://huggingface.co/blog/"
+    url: "https://huggingface.co/blog/feed.xml"
+    locale: "en"
+    source_weight: 1.22
+    max_items: 10
+    assume_relevant: true
+    article_selectors:
+      - "article"
+      - "main"
+      - ".blog-content"
+
+  - name: "字节跳动Seed"
+    region: "domestic"
+    enabled: true
+    kind: "html"
+    homepage_url: "https://seed.bytedance.com/zh/blog"
+    url: "https://seed.bytedance.com/zh/blog"
+    locale: "zh"
+    source_weight: 1.25
+    max_items: 10
+    assume_relevant: true
+    listing_selectors:
+      - "a[href*='/zh/blog/']"
+    include_patterns:
+      - "/zh/blog/"
+    article_selectors:
+      - "article"
+      - "main"
+      - ".blog-content"
+
+  - name: "机器之心"
+    region: "domestic"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://www.jiqizhixin.com/"
+    url: "https://www.jiqizhixin.com/rss"
+    locale: "zh"
+    source_weight: 1.22
+    max_items: 10
+    assume_relevant: true
+    article_selectors:
+      - "article"
+      - "main"
+      - ".article-content"
+
+  - name: "arXiv 机器学习"
+    region: "research"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://arxiv.org/list/cs.LG/recent"
+    url: "https://rss.arxiv.org/rss/cs.LG"
+    locale: "en"
+    source_weight: 1.15
+    max_items: 15
+    assume_relevant: true
+    forced_category: "research_paper"
+    skip_hydration: true
+
+  - name: "arXiv NLP"
+    region: "research"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://arxiv.org/list/cs.CL/recent"
+    url: "https://rss.arxiv.org/rss/cs.CL"
+    locale: "en"
+    source_weight: 1.15
+    max_items: 15
+    assume_relevant: true
+    forced_category: "research_paper"
+    skip_hydration: true
+
+  # 旅游出行（行业5）
+  - name: "携程投资者关系"
+    region: "domestic"
+    enabled: true
+    kind: "html"
+    homepage_url: "https://investors.trip.com"
+    url: "https://investors.trip.com"
+    locale: "zh"
+    source_weight: 1.20
+    max_items: 5
+    assume_relevant: true
+    listing_selectors:
+      - "a[href*='/news/']"
+    include_patterns:
+      - "/news/"
+    article_selectors:
+      - "article"
+      - "main"
+      - ".news-detail"
+
+  # 生活服务（行业6）
+  - name: "美团技术团队"
+    region: "domestic"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://tech.meituan.com/"
+    url: "https://tech.meituan.com/feed/"
+    locale: "zh"
+    source_weight: 1.18
+    max_items: 10
+    assume_relevant: false
+    article_selectors:
+      - "article"
+      - "main"
+      - ".article-content"
+
+  # 文娱传媒（行业7）
+  - name: "钛媒体"
+    region: "domestic"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://www.tmtpost.com/"
+    url: "https://www.tmtpost.com/rss.xml"
+    locale: "zh"
+    source_weight: 1.25
+    max_items: 10
+    assume_relevant: true
+    article_selectors:
+      - "article"
+      - "main"
+      - ".article-content"
+
+  # 硬科技（行业8）
+  - name: "电子工程专辑"
+    region: "domestic"
+    enabled: true
+    kind: "rss"
+    homepage_url: "https://www.eet-china.com/"
+    url: "https://www.eet-china.com/rss_feeds"
+    locale: "zh"
+    source_weight: 1.15
+    max_items: 10
+    assume_relevant: false
+    article_selectors:
+      - "article"
+      - "main"
+      - ".content"

@@ -18,7 +18,7 @@ class Article:
     locale: str = "zh"
     source_weight: float = 1.0
     forced_category: str | None = None
-    category: str | None = None
+    category: str | None = None  # V5.0废弃，保留兼容性
     importance_score: float = 0.0
     title_zh: str = ""
     summary: str = ""
@@ -29,6 +29,10 @@ class Article:
     finance_info: dict[str, str] = field(default_factory=dict)
     paper_info: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    # V5.0新字段
+    industry: str = ""  # 行业分类
+    entity: str = ""    # 主体（公司名/产品名）
+    content_type: str = ""  # 内容类型（product/company/trend）
 
     @property
     def display_title(self) -> str:

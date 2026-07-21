@@ -87,17 +87,12 @@ class DocxReportGenerator:
             paragraph.paragraph_format.first_line_indent = Pt(28)
             paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
             paragraph.paragraph_format.line_spacing = Pt(self.doc_cfg.get("line_spacing_pt", 28))
-            run = paragraph.add_run("本模块当日未筛选到高置信度资讯。")
+            run = paragraph.add_run("暂无相关内容")
             self._set_run_style(run, self.doc_cfg.get("body_font", "仿宋_GB2312"), self.doc_cfg.get("body_size_pt", 14))
             return
 
         for idx, article in enumerate(section.articles, start=1):
             self._add_article_block(document, idx, article)
-
-        if section.key == "ai_investment":
-            self._add_finance_table(document, section.articles)
-        if section.key == "research_paper":
-            self._add_paper_table(document, section.articles)
 
     def _add_article_block(self, document: Document, idx: int, article: Article) -> None:
         published_label = (
@@ -105,10 +100,17 @@ class DocxReportGenerator:
             if article.published_at
             else str(article.metadata.get("published_text") or "未知")
         )
+
+        # V5.0：标题旁显示主体
+        entity = getattr(article, 'entity', '') or getattr(article, 'industry', '')
+        title_text = f"{idx}. {article.display_title}"
+        if entity:
+            title_text += f" [主体: {entity}]"
+
         title_paragraph = document.add_paragraph()
         title_paragraph.paragraph_format.space_before = Pt(4)
         title_paragraph.paragraph_format.space_after = Pt(2)
-        title_run = title_paragraph.add_run(f"{idx}. {article.display_title}")
+        title_run = title_paragraph.add_run(title_text)
         self._set_run_style(title_run, self.doc_cfg.get("heading_font", "黑体"), 14, bold=True)
 
         meta_paragraph = document.add_paragraph()
@@ -123,14 +125,6 @@ class DocxReportGenerator:
         summary_paragraph.paragraph_format.line_spacing = Pt(self.doc_cfg.get("line_spacing_pt", 28))
         summary_run = summary_paragraph.add_run(f"摘要：{article.summary}")
         self._set_run_style(summary_run, self.doc_cfg.get("body_font", "仿宋_GB2312"), self.doc_cfg.get("body_size_pt", 14))
-
-        for point_index, point in enumerate(article.key_points[:3], start=1):
-            point_paragraph = document.add_paragraph()
-            point_paragraph.paragraph_format.first_line_indent = Pt(28)
-            point_paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
-            point_paragraph.paragraph_format.line_spacing = Pt(self.doc_cfg.get("line_spacing_pt", 28))
-            point_run = point_paragraph.add_run(f"要点{point_index}：{point}")
-            self._set_run_style(point_run, self.doc_cfg.get("body_font", "仿宋_GB2312"), self.doc_cfg.get("body_size_pt", 14))
 
         if self.doc_cfg.get("include_url", True):
             url_paragraph = document.add_paragraph()

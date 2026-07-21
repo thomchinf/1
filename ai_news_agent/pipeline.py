@@ -11,7 +11,7 @@ from PIL import Image, UnidentifiedImageError
 from .config import ensure_runtime_dirs
 from .doc_generator import DocxReportGenerator
 from .fetchers import NewsFetcher
-from .filters import deduplicate_articles, infer_category, score_article, should_keep_article
+from .filters import deduplicate_articles, infer_category, score_article, should_keep_article, update_history, INDUSTRIES
 from .http import build_session
 from .llm import NewsAnalyzer
 from .logging_utils import setup_logger
@@ -71,19 +71,15 @@ class DailyNewsPipeline:
         llm_stage_text = "正在调用 Qwen 生成中文摘要、翻译英文内容并分类..." if self.analyzer.llm_available else "未启用 Qwen，正在使用规则模式生成摘要..."
         self._report_progress(58, "analyzing", llm_stage_text)
         analyzed_articles = self.analyzer.analyze_articles(selected_for_analysis)
-        quality_threshold = int(self.config.get("quality", {}).get("min_score", 68))
-        self._report_progress(76, "quality", "正在进行资讯质量评估与筛选...")
-        quality_filtered = [
-            article
-            for article in analyzed_articles
-            if int(article.metadata.get("quality_score", 0)) >= quality_threshold
-        ]
-        self.logger.info("完成质量筛选，保留资讯 %s 条。", len(quality_filtered))
+        self._report_progress(76, "quality", "正在进行资讯质量评估...")
 
-        final_articles = quality_filtered or analyzed_articles
+        # 中间方案：不做硬截断，所有文章都保留，低分标注[简讯]
+        final_articles = analyzed_articles
         for article in final_articles:
             if not article.importance_score:
                 article.importance_score = score_article(article, filtering)
+
+        self.logger.info("完成分析，共 %s 条文章待输出。", len(final_articles))
 
         self._report_progress(84, "images", "正在整理栏目并下载配图...")
         sections = self._build_sections(final_articles)
@@ -111,8 +107,14 @@ class DailyNewsPipeline:
         self.markdown_generator.generate(markdown_path, sections, metadata)
         write_source_stats(stats_path, metadata, source_stats)
 
+        # 看板系统：导出JSON文件
+        self._export_dashboard_json(output_path, raw_articles, filtered, deduplicated, final_articles, sections)
+
         if not runtime.get("keep_temp_images", False):
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+        # 中间方案：更新去重历史记录
+        update_history(final_articles)
 
         finished_at = datetime.now()
         self.logger.info("日报生成完成：%s", output_path)
@@ -132,56 +134,100 @@ class DailyNewsPipeline:
         )
 
     def _build_sections(self, articles: list) -> list[SectionBundle]:
-        section_order = self.config["document"].get("sections", [])
+        """V5.0：按9个行业×3种内容类型分组"""
         max_items_per_section = int(self.config["runtime"].get("max_items_per_section", 5))
-        grouped: dict[str, list] = {section["key"]: [] for section in section_order}
+
+        # V5.0：按行业+内容类型分组
+        grouped: dict[str, dict[str, list]] = {}
+        for ind in INDUSTRIES:
+            grouped[ind["key"]] = {"product": [], "company": [], "trend": []}
 
         for article in articles:
-            key = article.category or "ai_model"
-            grouped.setdefault(key, []).append(article)
+            industry_key = getattr(article, 'industry', '') or 'other'
+            content_type = getattr(article, 'content_type', 'trend') or 'trend'
 
+            # 找到对应行业
+            matched_ind = None
+            for ind in INDUSTRIES:
+                if ind["name"] == industry_key or ind["key"] == industry_key:
+                    matched_ind = ind
+                    break
+
+            if matched_ind is None:
+                # 未识别行业归入"其他"
+                if "other" not in grouped:
+                    grouped["other"] = {"product": [], "company": [], "trend": []}
+                grouped["other"][content_type].append(article)
+            else:
+                grouped[matched_ind["key"]][content_type].append(article)
+
+        # V5.0：构建SectionBundle列表（按关注级别排序）
         bundles: list[SectionBundle] = []
-        for section in section_order:
-            articles_in_section = sorted(
-                grouped.get(section["key"], []),
-                key=lambda item: (item.forced_category == section["key"], item.importance_score),
-                reverse=True,
-            )[:max_items_per_section]
-            bundles.append(SectionBundle(key=section["key"], label=section["label"], articles=articles_in_section))
+        for ind in INDUSTRIES:
+            key = ind["key"]
+            name = ind["name"]
+            level = ind["level"]
+
+            for content_type in ["trend", "company", "product"]:
+                type_labels = {"trend": "行业趋势", "company": "公司动态", "product": "产品动态"}
+                type_label = type_labels.get(content_type, content_type)
+
+                articles_in_type = sorted(
+                    grouped.get(key, {}).get(content_type, []),
+                    key=lambda item: item.importance_score,
+                    reverse=True,
+                )[:max_items_per_section]
+
+                bundle_key = f"{key}_{content_type}"
+                bundle_label = f"{name} - {type_label}"
+                bundles.append(SectionBundle(key=bundle_key, label=bundle_label, articles=articles_in_type))
+
         return bundles
 
     def _select_for_analysis(self, articles: list, filtering: dict[str, Any]) -> list:
-        max_for_analysis = int(self.config["runtime"].get("max_articles_for_analysis", 25))
-        min_per_section = int(self.config["runtime"].get("min_items_for_section_analysis", 1))
-        section_keys = [section["key"] for section in self.config["document"].get("sections", [])]
+        """V5.0：按行业分组选择文章用于分析"""
+        max_for_analysis = int(self.config["runtime"].get("max_articles_for_analysis", 50))
 
-        grouped: dict[str, list] = {key: [] for key in section_keys}
+        # V5.0：按行业分组
+        industry_groups: dict[str, list] = {}
+        for ind in INDUSTRIES:
+            industry_groups[ind["key"]] = []
+
         for article in articles:
-            article.category = article.category or infer_category(article, filtering)
-            grouped.setdefault(article.category, []).append(article)
+            industry_key = getattr(article, 'industry', '') or 'other'
+            matched_key = None
+            for ind in INDUSTRIES:
+                if ind["name"] == industry_key or ind["key"] == industry_key:
+                    matched_key = ind["key"]
+                    break
+            key = matched_key or "other"
+            industry_groups.setdefault(key, []).append(article)
 
         selected: list = []
         selected_urls: set[str] = set()
 
-        for key in section_keys:
+        # 每个行业最多选5篇
+        for key in industry_groups:
             top_items = sorted(
-                grouped.get(key, []),
-                key=lambda item: (item.forced_category == key, item.importance_score),
+                industry_groups.get(key, []),
+                key=lambda item: item.importance_score,
                 reverse=True,
-            )[:min_per_section]
+            )[:5]
             for article in top_items:
-                if article.url not in selected_urls:
+                if article.url not in selected_urls and len(selected) < max_for_analysis:
                     selected.append(article)
                     selected_urls.add(article.url)
 
-        remaining = sorted(articles, key=lambda item: item.importance_score, reverse=True)
-        for article in remaining:
-            if len(selected) >= max_for_analysis:
-                break
-            if article.url in selected_urls:
-                continue
-            selected.append(article)
-            selected_urls.add(article.url)
+        # 如果还不够，按重要性补充
+        if len(selected) < max_for_analysis:
+            remaining = sorted(articles, key=lambda item: item.importance_score, reverse=True)
+            for article in remaining:
+                if len(selected) >= max_for_analysis:
+                    break
+                if article.url in selected_urls:
+                    continue
+                selected.append(article)
+                selected_urls.add(article.url)
         return selected[:max_for_analysis]
 
     def _report_progress(self, progress: int, stage: str, message: str, details: dict[str, Any] | None = None) -> None:
@@ -307,3 +353,76 @@ class DailyNewsPipeline:
                         self.logger.warning("图片下载失败 %s：%s", image_url, exc)
                 if downloaded >= 2:
                     break
+
+    def _export_dashboard_json(
+        self,
+        output_path: Path,
+        raw_articles: list,
+        filtered: list,
+        deduplicated: list,
+        final_articles: list,
+        sections: list,
+    ) -> None:
+        """V5.0：导出看板所需的JSON文件"""
+        import json
+
+        output_dir = output_path.parent
+
+        # V5.0：统计兜底触发次数
+        fallback_count = sum(1 for a in final_articles if a.metadata.get("fallback_triggered", False))
+
+        # 1. stats.json - 漏斗统计
+        stats_data = {
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "fetched": len(raw_articles),
+            "filtered": len(filtered),
+            "deduped": len(deduplicated),
+            "final": len(final_articles),
+            "signal_hit": 0,
+            "combo_hit": 0,
+            "expired": 0,
+            "dropped": len(raw_articles) - len(filtered),
+            "fallback_count": fallback_count,
+        }
+        stats_path = output_dir / "stats.json"
+        with open(stats_path, "w", encoding="utf-8") as f:
+            json.dump(stats_data, f, ensure_ascii=False, indent=2)
+
+        # 2. report_data.json - 日报正文（V5.0新字段）
+        report_data = []
+        for section in sections:
+            for article in section.articles:
+                # 判断状态
+                if article.importance_score >= 85:
+                    status = "important"
+                elif article.importance_score >= 50:
+                    status = "normal"
+                else:
+                    status = "brief"
+
+                report_data.append({
+                    "section": section.key,
+                    "section_label": section.label,
+                    "title": article.title_zh or article.title,
+                    "entity": getattr(article, 'entity', ''),
+                    "industry": getattr(article, 'industry', ''),
+                    "content_type": getattr(article, 'content_type', ''),
+                    "summary": article.summary[:200] if article.summary else "",
+                    "score": int(article.importance_score),
+                    "status": status,
+                    "source": article.source_name,
+                    "url": article.url,
+                    "published_at": article.published_at.isoformat() if article.published_at else None,
+                    "fallback": article.metadata.get("fallback_triggered", False),
+                })
+        report_path = output_dir / "report_data.json"
+        with open(report_path, "w", encoding="utf-8") as f:
+            json.dump(report_data, f, ensure_ascii=False, indent=2)
+
+        # 3. duplicates_log.json - 去重拦截明细
+        dup_log = []
+        dup_path = output_dir / "duplicates_log.json"
+        with open(dup_path, "w", encoding="utf-8") as f:
+            json.dump(dup_log, f, ensure_ascii=False, indent=2)
+
+        self.logger.info("看板JSON已导出：%s, %s, %s", stats_path.name, report_path.name, dup_path.name)

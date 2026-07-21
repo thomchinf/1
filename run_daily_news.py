@@ -4,7 +4,7 @@ import argparse
 
 from dotenv import load_dotenv
 
-from ai_news_agent.config import load_config, merge_overrides
+from ai_news_agent.config import load_web_config, merge_overrides
 from ai_news_agent.pipeline import DailyNewsPipeline
 
 
@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     load_dotenv()
     args = parse_args()
-    config = load_config(args.config)
+    config = load_web_config()
 
     overrides = {}
     if args.skip_llm:
