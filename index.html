@@ -1550,6 +1550,7 @@
 
     .image-gallery-item {
       display: block;
+      position: relative;
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -1574,6 +1575,30 @@
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+
+    .image-gallery-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(26, 30, 23, 0.78);
+      color: #fff;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      z-index: 2;
+    }
+
+    .image-gallery-item.is-delete-open .image-gallery-delete {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
     }
 
     .star-info-list {
@@ -3171,12 +3196,24 @@
       activeVenueId: '',
       step12Draft: null,
       pendingPoiSelection: null,
+      imageDeleteIndex: -1,
+      imageLongPress: {
+        timer: null,
+        index: -1,
+        startX: 0,
+        startY: 0
+      },
 
       init() {
-        document.getElementById('tab-star').addEventListener('click', (event) => this.handleClick(event));
-        document.getElementById('tab-star').addEventListener('input', (event) => this.handleInput(event));
-        document.getElementById('tab-star').addEventListener('change', (event) => this.handleChange(event));
-        document.getElementById('tab-star').addEventListener('submit', (event) => this.handleSubmit(event));
+        const starTab = document.getElementById('tab-star');
+        starTab.addEventListener('click', (event) => this.handleClick(event));
+        starTab.addEventListener('input', (event) => this.handleInput(event));
+        starTab.addEventListener('change', (event) => this.handleChange(event));
+        starTab.addEventListener('submit', (event) => this.handleSubmit(event));
+        starTab.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
+        starTab.addEventListener('pointermove', (event) => this.handlePointerMove(event));
+        starTab.addEventListener('pointerup', () => this.handlePointerUp());
+        starTab.addEventListener('pointercancel', () => this.handlePointerCancel());
         document.getElementById('modal-container').addEventListener('click', (event) => this.handleModalClick(event));
         document.getElementById('modal-container').addEventListener('submit', (event) => this.handleSubmit(event));
       },
@@ -3488,6 +3525,98 @@
         this.runAction(trigger.dataset.action, trigger.dataset.id, trigger);
       },
 
+      handlePointerDown(event) {
+        const item = event.target.closest('.image-gallery-item[data-image-index]');
+        if (!item || event.target.closest('.image-gallery-delete')) return;
+        this.startImageLongPress(event, item);
+      },
+
+      handlePointerMove(event) {
+        if (!this.imageLongPress.timer) return;
+        const movedX = Math.abs(event.clientX - this.imageLongPress.startX);
+        const movedY = Math.abs(event.clientY - this.imageLongPress.startY);
+        if (movedX > 10 || movedY > 10) this.cancelImageLongPress();
+      },
+
+      handlePointerUp() {
+        this.cancelImageLongPress();
+      },
+
+      handlePointerCancel() {
+        this.cancelImageLongPress();
+      },
+
+      startImageLongPress(event, item) {
+        this.cancelImageLongPress();
+        const index = Number(item.dataset.imageIndex);
+        if (!Number.isFinite(index)) return;
+        this.imageLongPress = {
+          index,
+          startX: event.clientX,
+          startY: event.clientY,
+          timer: window.setTimeout(() => {
+            this.imageLongPress.timer = null;
+            this.openImageDelete(index);
+          }, 560)
+        };
+      },
+
+      cancelImageLongPress() {
+        if (this.imageLongPress.timer) window.clearTimeout(this.imageLongPress.timer);
+        this.imageLongPress = { timer: null, index: -1, startX: 0, startY: 0 };
+      },
+
+      openImageDelete(index) {
+        this.imageDeleteIndex = index;
+        document.querySelectorAll('#tab-star .image-gallery-item[data-image-index]').forEach((item) => {
+          item.classList.toggle('is-delete-open', Number(item.dataset.imageIndex) === index);
+        });
+      },
+
+      getChannelExtractWaitMessage(channel) {
+        const names = {
+          xiaohongshu: '\u5c0f\u7ea2\u4e66',
+          dianping: '\u5927\u4f17\u70b9\u8bc4',
+          amap: '\u9ad8\u5fb7',
+          meituan: '\u7f8e\u56e2'
+        };
+        const name = names[channel] || '\u5e73\u53f0';
+        return channel === 'xiaohongshu'
+          ? '\u6b63\u5728\u63d0\u53d6\u5c0f\u7ea2\u4e66\u5185\u5bb9\uff0c\u8bf7\u7a0d\u540e\uff0c\u53ef\u80fd\u9700\u8981\u51e0\u79d2...'
+          : `\u6b63\u5728\u63d0\u53d6${name}\u5185\u5bb9\uff0c\u8bf7\u7a0d\u540e...`;
+      },
+
+      setChannelExtractStatus(form, message, options = {}) {
+        if (!form) return;
+        let status = form.querySelector('[data-channel-extract-status]');
+        if (!status) {
+          status = document.createElement('p');
+          status.dataset.channelExtractStatus = 'true';
+          status.setAttribute('role', 'status');
+          status.className = 'inline-status';
+          const actions = form.querySelector('.form-actions:last-of-type');
+          form.insertBefore(status, actions || null);
+        }
+        status.textContent = message || '';
+        status.className = `inline-status${message ? ' is-visible' : ''}${options.error ? ' is-error' : ''}`;
+      },
+
+      setChannelSubmitButton(form, loading) {
+        const button = form?.querySelector('button[type="submit"]');
+        if (!button) return;
+        if (loading) {
+          if (!button.dataset.originalText) button.dataset.originalText = button.textContent || '';
+          button.disabled = true;
+          button.textContent = '\u63d0\u53d6\u4e2d...';
+          return;
+        }
+        button.disabled = false;
+        if (button.dataset.originalText) {
+          button.textContent = button.dataset.originalText;
+          delete button.dataset.originalText;
+        }
+      },
+
       async handleSubmit(event) {
         if (event.target.id === 'star-step12-form') {
           event.preventDefault();
@@ -3505,10 +3634,28 @@
             linkLength: link.length,
             backendConfigured: BackendClient.isConfigured()
           });
-          if (event.target.dataset.owner === 'pick') {
-            await PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, link);
-          } else {
-            await this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, link);
+          const waitMessage = this.getChannelExtractWaitMessage(event.target.dataset.channel);
+          this.setChannelExtractStatus(event.target, waitMessage);
+          this.setChannelSubmitButton(event.target, true);
+          UI.showStatus(waitMessage, 'success');
+          try {
+            if (event.target.dataset.owner === 'pick') {
+              await PickManager.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, link);
+            } else {
+              await this.saveChannelLink(event.target.dataset.venueId, event.target.dataset.channel, link);
+            }
+          } catch (error) {
+            console.error('[PickPick] channel extract failed', error);
+            if (event.target.isConnected) {
+              this.setChannelExtractStatus(
+                event.target,
+                `\u63d0\u53d6\u5931\u8d25\uff1a${error?.message || '\u8bf7\u68c0\u67e5\u5185\u5bb9\u540e\u91cd\u8bd5'}`,
+                { error: true }
+              );
+            }
+            UI.showStatus('\u63d0\u53d6\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u5185\u5bb9\u540e\u91cd\u8bd5\u3002');
+          } finally {
+            if (event.target.isConnected) this.setChannelSubmitButton(event.target, false);
           }
           return;
         }
@@ -3535,6 +3682,7 @@
           'back-star-list': () => this.goStep1(),
           'confirm-star-info': () => this.confirmStep12(),
           'clear-star-info': () => this.clearStep12Info(),
+          'delete-step12-image': () => this.deleteStep12Image(trigger?.dataset.index),
           'clear-search': () => {
             this.query = '';
             this.starFilters = {
@@ -4193,7 +4341,7 @@
         return `
           <form id="star-step12-form" class="star-info-panel" aria-label="场地补充信息">
             <div class="star-info-image${images.length > 1 ? ' is-gallery' : ''}">
-              ${this.renderImageGallery(images, venue.name)}
+              ${this.renderImageGallery(images, venue.name, { editable: true })}
             </div>
             <div class="star-info-list">
               <label class="star-info-row">
@@ -4260,12 +4408,46 @@
         }).filter(Boolean))];
       },
 
-      renderImageGallery(images = [], name = '') {
+      renderImageGallery(images = [], name = '', options = {}) {
         const renderableImages = this.getRenderableImages(images);
         if (!renderableImages.length) return '图片';
+        const editable = Boolean(options.editable);
         return renderableImages.map((image, index) => (
-          `<span class="image-gallery-item"><img src="${UI.escape(image)}" alt="${UI.escape(name)} 图片 ${index + 1}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.closest('.image-gallery-item')?.classList.add('is-hidden')"></span>`
+          `<span class="image-gallery-item${editable && this.imageDeleteIndex === index ? ' is-delete-open' : ''}"${editable ? ` data-image-index="${index}"` : ''}><img src="${UI.escape(image)}" alt="${UI.escape(name)} 图片 ${index + 1}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.closest('.image-gallery-item')?.classList.add('is-hidden')">${editable ? `<button class="image-gallery-delete" type="button" data-action="delete-step12-image" data-index="${index}" aria-label="删除图片 ${index + 1}">删除</button>` : ''}</span>`
         )).join('');
+      },
+
+      deleteStep12Image(indexValue) {
+        const index = Number(indexValue);
+        const venue = this.getStep12Venue();
+        if (!venue || !Number.isFinite(index)) return;
+        const target = this.getRenderableImages(venue.images || [])[index];
+        if (!target) return;
+        let removed = false;
+        const nextImages = (venue.images || []).filter((image) => {
+          const normalized = this.getRenderableImages([image])[0];
+          if (!removed && normalized === target) {
+            removed = true;
+            return false;
+          }
+          return true;
+        });
+        if (!removed) return;
+        const nextVenue = {
+          ...this.readStep12Form(venue),
+          images: nextImages
+        };
+        this.imageDeleteIndex = -1;
+        if (this.step12Draft && this.step12Draft.id === nextVenue.id) {
+          this.step12Draft = nextVenue;
+          this.renderStep12();
+          UI.showStatus('图片已删除。', 'success');
+          return;
+        }
+        const venues = Storage.loadVenues();
+        if (!Storage.saveVenues(venues.map((item) => (item.id === nextVenue.id ? nextVenue : item)))) return;
+        this.renderStep12();
+        UI.showStatus('图片已删除。', 'success');
       },
 
       renderStep12() {
