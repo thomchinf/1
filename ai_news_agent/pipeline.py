@@ -11,6 +11,7 @@ from PIL import Image, UnidentifiedImageError
 from .config import ensure_runtime_dirs
 from .doc_generator import DocxReportGenerator
 from .fetchers import NewsFetcher
+from .feishu_pusher import get_pusher
 from .filters import deduplicate_articles, infer_category, score_article, should_keep_article, update_history, INDUSTRIES
 from .http import build_session
 from .llm import NewsAnalyzer
@@ -110,10 +111,13 @@ class DailyNewsPipeline:
         # 看板系统：导出JSON文件
         self._export_dashboard_json(output_path, raw_articles, filtered, deduplicated, final_articles, sections)
 
+        # 飞书推送：发送日报摘要
+        self._push_to_feishu(output_path, raw_articles, filtered, deduplicated, final_articles)
+
         if not runtime.get("keep_temp_images", False):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-        # 中间方案：更新去重历史记录
+        # 更新去重历史记录
         update_history(final_articles)
 
         finished_at = datetime.now()
@@ -426,3 +430,49 @@ class DailyNewsPipeline:
             json.dump(dup_log, f, ensure_ascii=False, indent=2)
 
         self.logger.info("看板JSON已导出：%s, %s, %s", stats_path.name, report_path.name, dup_path.name)
+
+    def _push_to_feishu(
+        self,
+        output_path: Path,
+        raw_articles: list,
+        filtered: list,
+        deduplicated: list,
+        final_articles: list,
+    ) -> None:
+        """推送日报摘要到飞书"""
+        try:
+            pusher = get_pusher(self.config)
+            if pusher is None:
+                return
+
+            # 构建stats数据
+            stats = {
+                "fetched": len(raw_articles),
+                "filtered": len(filtered),
+                "deduped": len(deduplicated),
+                "final": len(final_articles),
+                "fallback_count": sum(1 for a in final_articles if a.metadata.get("fallback_triggered", False)),
+            }
+
+            # 构建report_data列表
+            report_data = []
+            for article in final_articles:
+                report_data.append({
+                    "title": article.title_zh or article.title,
+                    "industry": getattr(article, 'industry', ''),
+                    "entity": getattr(article, 'entity', ''),
+                    "content_type": getattr(article, 'content_type', ''),
+                    "score": int(article.importance_score),
+                    "source": article.source_name,
+                    "url": article.url,
+                })
+
+            # 发送推送
+            success = pusher.push_daily_report(stats, report_data, output_path)
+            if success:
+                self.logger.info("飞书推送成功")
+            else:
+                self.logger.warning("飞书推送失败")
+
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("飞书推送异常：%s", exc)

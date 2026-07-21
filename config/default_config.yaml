@@ -21,6 +21,11 @@ runtime:
 schedule:
   daily_time: "09:00"
 
+feishu:
+  enabled: true
+  webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/4c50be82-bfc7-461f-a674-18e338c4d747"
+  timeout: 10
+
 summary:
   min_chars: 100
   max_chars: 300
