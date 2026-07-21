@@ -1721,6 +1721,23 @@
       background: #E8EFE4;
     }
 
+    .map-placeholder.is-amap {
+      background: var(--color-surface-soft);
+    }
+
+    .map-placeholder.is-amap .map-route,
+    .map-placeholder.is-amap .map-pin,
+    .map-placeholder.is-amap .map-label,
+    .map-placeholder.is-amap .map-credit {
+      display: none;
+    }
+
+    .amap-map {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
     .map-frame {
       position: absolute;
       inset: 0;
@@ -1809,6 +1826,68 @@
       padding: 4px 6px;
       font-size: 10px;
       color: var(--color-muted);
+    }
+
+    .pick-amap-marker {
+      display: grid;
+      place-items: center;
+      min-width: 30px;
+      height: 30px;
+      padding: 0 8px;
+      border: 2px solid rgba(255, 253, 248, 0.92);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      box-shadow: 0 8px 20px rgba(33, 36, 29, 0.22);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .pick-amap-marker.is-origin {
+      background: #FFFFFF;
+      color: var(--color-primary-dark);
+    }
+
+    .pick-amap-marker.is-selected {
+      width: 38px;
+      height: 38px;
+      background: #183B32;
+      color: #FFFFFF;
+      box-shadow: 0 0 0 7px rgba(24, 59, 50, 0.18), 0 10px 24px rgba(24, 59, 50, 0.28);
+    }
+
+    .amap-info {
+      display: grid;
+      gap: 8px;
+      min-width: 180px;
+      max-width: 240px;
+      color: var(--color-text);
+      font-family: inherit;
+    }
+
+    .amap-info strong {
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .amap-info span {
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .amap-nav-btn {
+      min-height: 34px;
+      border: 0;
+      border-radius: 999px;
+      background: #183B32;
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 800;
     }
 
     .filter-summary {
@@ -2683,6 +2762,12 @@
   <script>
     const XIAOHONGSHU_PROXY_URL = 'http://127.0.0.1:18061/prepare-xiaohongshu';
     const XIAOHONGSHU_MAX_IMAGES = 9;
+    const APP_CONFIG = {
+      // 填入高德开放平台 Web端 JS API Key。
+      amapJsKey: '1f169904f9b8a174a32ece86c1af435c',
+      // 填入对应的安全密钥 securityJsCode。
+      amapSecurityCode: '1c33939c8e072c05a29efcd4bb17566b'
+    };
 
     const DEFAULT_VENUES = [];
 
@@ -5958,6 +6043,12 @@
     };
 
     const MapView = {
+      amapLoader: null,
+      amapMap: null,
+      amapMarkers: [],
+      amapInfoWindow: null,
+      renderToken: 0,
+
       fallbackPositions: [
         { x: 70, y: 34 },
         { x: 52, y: 58 },
@@ -5983,9 +6074,15 @@
       async render(scoredVenues, currentPick) {
         const map = document.querySelector('[data-map-view="true"]');
         if (!map || !scoredVenues.length) return;
+        const renderToken = ++this.renderToken;
+        this.resetMap(map);
         try {
           const mapItems = await this.resolveMapItems(scoredVenues, currentPick);
+          if (renderToken !== this.renderToken) return;
           if (!mapItems.length) return;
+          const amapRendered = await this.renderAmap(map, mapItems, currentPick, renderToken);
+          if (amapRendered) return;
+          if (renderToken !== this.renderToken) return;
           const bounds = this.getBounds(mapItems);
           map.classList.add('is-live');
           map.insertAdjacentHTML('afterbegin', `
@@ -5996,6 +6093,179 @@
         } catch (error) {
           map.classList.remove('is-live');
         }
+      },
+
+      resetMap(map) {
+        if (this.amapInfoWindow) {
+          try {
+            this.amapInfoWindow.close();
+          } catch (error) {}
+        }
+        if (this.amapMap) {
+          try {
+            this.amapMap.destroy();
+          } catch (error) {}
+        }
+        map.classList.remove('is-live', 'is-amap');
+        map.querySelectorAll('.map-frame, .map-credit, .amap-map').forEach((element) => element.remove());
+        this.amapMarkers = [];
+        this.amapInfoWindow = null;
+        this.amapMap = null;
+      },
+
+      hasAmapConfig() {
+        return Boolean(String(APP_CONFIG.amapJsKey || '').trim() && String(APP_CONFIG.amapSecurityCode || '').trim());
+      },
+
+      async loadAmap() {
+        if (!this.hasAmapConfig()) return null;
+        if (window.AMap) return window.AMap;
+        if (this.amapLoader) return this.amapLoader;
+        window._AMapSecurityConfig = {
+          securityJsCode: String(APP_CONFIG.amapSecurityCode || '').trim()
+        };
+        this.amapLoader = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(String(APP_CONFIG.amapJsKey || '').trim())}&plugin=AMap.Scale,AMap.ToolBar`;
+          script.async = true;
+          script.onload = () => resolve(window.AMap || null);
+          script.onerror = () => reject(new Error('AMap JS load failed'));
+          document.head.appendChild(script);
+        });
+        return this.amapLoader;
+      },
+
+      async renderAmap(map, mapItems, currentPick, renderToken) {
+        try {
+          const AMap = await this.loadAmap();
+          if (renderToken !== this.renderToken) return true;
+          if (!AMap) return false;
+          const container = document.createElement('div');
+          container.className = 'amap-map';
+          map.insertAdjacentElement('afterbegin', container);
+          map.classList.add('is-live', 'is-amap');
+          const origin = mapItems.find((item) => item.type === 'origin') || null;
+          const venues = mapItems.filter((item) => item.type === 'venue');
+          const centerItem = venues[0] || origin || mapItems[0];
+          this.amapMap = new AMap.Map(container, {
+            viewMode: '2D',
+            resizeEnable: true,
+            zoom: 14,
+            center: [centerItem.lon, centerItem.lat]
+          });
+          if (AMap.Scale) this.amapMap.addControl(new AMap.Scale());
+          if (AMap.ToolBar) this.amapMap.addControl(new AMap.ToolBar({ position: 'RB' }));
+          const confirmedVenueIds = currentPick.confirmedVenueIds || [];
+          this.amapMarkers = mapItems.map((item, index) => this.createAmapMarker(AMap, item, {
+            index,
+            origin,
+            selected: item.type === 'venue' && confirmedVenueIds.includes(item.id)
+          }));
+          this.amapMap.add(this.amapMarkers);
+          if (this.amapMarkers.length > 1) {
+            this.amapMap.setFitView(this.amapMarkers, false, [46, 30, 46, 30], 17);
+          }
+          window.setTimeout(() => this.amapMap?.resize(), 80);
+          return true;
+        } catch (error) {
+          console.warn('[PickPick] amap render failed, fallback to static map', error);
+          map.querySelectorAll('.amap-map').forEach((element) => element.remove());
+          map.classList.remove('is-amap');
+          return false;
+        }
+      },
+
+      createAmapMarker(AMap, item, options = {}) {
+        const content = this.createAmapMarkerContent(item, options, () => {
+          this.openAmapInfo(AMap, item, options.origin);
+        });
+        const marker = new AMap.Marker({
+          position: [item.lon, item.lat],
+          title: item.name || '',
+          anchor: 'center',
+          offset: new AMap.Pixel(0, 0),
+          clickable: true,
+          bubble: false,
+          zIndex: options.selected ? 120 : (item.type === 'origin' ? 90 : 100),
+          content
+        });
+        marker.on('click', () => {
+          this.openAmapInfo(AMap, item, options.origin);
+        });
+        marker.on('touchend', () => {
+          this.openAmapInfo(AMap, item, options.origin);
+        });
+        return marker;
+      },
+
+      createAmapMarkerContent(item, options = {}, onOpen = () => {}) {
+        const marker = document.createElement('button');
+        marker.className = `pick-amap-marker${item.type === 'origin' ? ' is-origin' : ''}${options.selected ? ' is-selected' : ''}`;
+        marker.type = 'button';
+        marker.setAttribute('aria-label', item.name || (item.type === 'origin' ? '起点' : '地点'));
+        if (item.type === 'origin') {
+          marker.textContent = '起';
+        } else {
+          marker.textContent = options.selected ? '✓' : String((options.index || 0) + 1);
+        }
+        marker.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpen();
+        });
+        marker.addEventListener('touchend', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpen();
+        }, { passive: false });
+        return marker;
+      },
+
+      openAmapInfo(AMap, item, origin) {
+        if (!this.amapMap) return;
+        if (this.amapInfoWindow) this.amapInfoWindow.close();
+        const content = this.createAmapInfoContent(item, origin);
+        this.amapInfoWindow = new AMap.InfoWindow({
+          isCustom: false,
+          autoMove: true,
+          offset: new AMap.Pixel(0, -18),
+          content
+        });
+        this.amapInfoWindow.open(this.amapMap, [item.lon, item.lat]);
+      },
+
+      createAmapInfoContent(item, origin) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'amap-info';
+        const title = document.createElement('strong');
+        title.textContent = item.name || (item.type === 'origin' ? '起点' : '目的地');
+        wrapper.appendChild(title);
+        const address = item.formattedAddress || item.address || item.district || '';
+        if (address) {
+          const text = document.createElement('span');
+          text.textContent = address;
+          wrapper.appendChild(text);
+        }
+        if (item.type === 'venue') {
+          const button = document.createElement('button');
+          button.className = 'amap-nav-btn';
+          button.type = 'button';
+          button.textContent = '到这去';
+          button.addEventListener('click', () => this.openAmapNavigation(item, origin));
+          wrapper.appendChild(button);
+        }
+        return wrapper;
+      },
+
+      openAmapNavigation(destination, origin) {
+        if (!destination) return;
+        const toName = encodeURIComponent(destination.name || '目的地');
+        const src = encodeURIComponent('PickPick');
+        const to = `${destination.lon},${destination.lat},${toName}`;
+        const url = origin
+          ? `https://uri.amap.com/navigation?from=${origin.lon},${origin.lat},${encodeURIComponent(origin.name || '起点')}&to=${to}&mode=car&policy=1&src=${src}&coordinate=gaode&callnative=1`
+          : `https://uri.amap.com/marker?position=${destination.lon},${destination.lat}&name=${toName}&src=${src}&coordinate=gaode&callnative=1`;
+        window.open(url, '_blank', 'noopener,noreferrer');
       },
 
       async resolveMapItems(scoredVenues, currentPick) {
