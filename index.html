@@ -3322,12 +3322,12 @@
           .map(String))];
         return [
           { key: 'sceneType', label: '场景', options: ['自习室', '咖啡馆', '其他'] },
-          { key: 'environment', label: '环境', options: ['安静', '禁烟', '靠窗'] },
-          { key: 'device', label: '设备', options: ['插座', '大桌', '音乐', '卫生间'] },
-          { key: 'food', label: '美食', options: ['柠檬巴斯克'] },
+          { key: 'environment', label: '环境', options: ['安静', '喧闹', '自然光充足', '光线偏暗', '色彩温暖', '空间宽敞', '周末人多', '咖啡香'] },
+          { key: 'device', label: '设备', options: ['座位宽敞', '座位偏窄', '椅子舒服', '空调偏冷', '有窗景', '有树荫', '大桌', '7-10人桌', '插座', '每座有插座', '插座不多', '洗手间'] },
+          { key: 'food', label: '美食', options: ['手冲咖啡', '特调咖啡', '风味咖啡', '茶', '气泡水', '简餐', '甜品'] },
           { key: 'price', label: '价格', options: prices },
-          { key: 'business', label: '业态', options: ['纯咖啡', '日咖夜酒', '书店+咖啡'] },
-          { key: 'service', label: '服务', options: ['免费柠檬水', '免费自取水', '提供纸巾', '宠物友好', '无需预约', '需现场等位'] }
+          { key: 'business', label: '业态', options: ['纯咖啡', '书店+咖啡', '日咖夜酒', '狗咖'] },
+          { key: 'service', label: '服务', options: ['Wi-Fi', '服务态度好', '宠物友好', '不可携带宠物', '可抽烟', '禁烟', '有停车位', '地铁便利'] }
         ];
       },
 
@@ -6113,7 +6113,7 @@
             venueId: baseVenue?.id || venue?.id || '',
             hasGeoPlace: Boolean(baseVenue?.geoPlace || venue?.geoPlace),
             hasAddress: Boolean(baseVenue?.address || venue?.address),
-            hasHours: Boolean(baseVenue?.hours || venue?.hours),
+            hasHours: Boolean(AIExtractor.sanitizeHours(baseVenue?.hours || venue?.hours)),
             hasPrice: Boolean(Number(baseVenue?.price?.amount) || Number(venue?.price?.amount)),
             imageCount: Math.max(baseVenue?.images?.length || 0, venue?.images?.length || 0)
           });
@@ -6138,7 +6138,7 @@
         const linkedChannel = ['xiaohongshu', 'dianping'].includes(String(channel || '').toLowerCase());
         const hasGeoPlace = Boolean(baseVenue.geoPlace || venue.geoPlace);
         const hasAddress = Boolean(baseVenue.address || venue.address);
-        const hasHours = Boolean(baseVenue.hours || venue.hours);
+        const hasHours = Boolean(AIExtractor.sanitizeHours(baseVenue.hours || venue.hours));
         const hasPrice = Boolean(Number(baseVenue.price?.amount) || Number(venue.price?.amount));
         const hasImages = Boolean((baseVenue.images?.length || 0) || (venue.images?.length || 0));
         if (linkedChannel) {
@@ -6214,11 +6214,6 @@
           ? rawAddress
           : [city, district, rawAddress].filter(Boolean).join('');
         const business = this.getPoiBusiness(poi);
-        const notes = [
-          poi.rating ? `高德评分：${poi.rating}` : '',
-          poi.tel ? `电话：${poi.tel}` : '',
-          poi.type ? `高德类型：${poi.type}` : ''
-        ].filter(Boolean).join('；');
         return {
           source: 'amap-poi',
           name: poi.name || '',
@@ -6239,7 +6234,7 @@
           customTags: business ? [business] : [],
           menuInfo: '',
           membershipInfo: '',
-          notes,
+          notes: '',
           sceneType: this.getPoiSceneType(poi),
           images: poi.photos?.map((photo) => this.normalizeImageUrl(photo.url)).filter(Boolean) || [],
           geoPlace: poi.latitude !== null && poi.longitude !== null && Number.isFinite(Number(poi.latitude)) && Number.isFinite(Number(poi.longitude))
@@ -6262,9 +6257,10 @@
 
       getPoiBusiness(poi = {}) {
         const text = `${poi.name || ''} ${poi.type || ''}`;
-        if (/咖啡|咖啡厅|饮品|甜品/.test(text)) return '纯咖啡';
-        if (/酒吧|酒馆|精酿|日咖夜酒/.test(text)) return '日咖夜酒';
+        if (/狗咖|宠物|犬/.test(text) && /咖啡/.test(text)) return '狗咖';
         if (/书店|图书|书房/.test(text) && /咖啡/.test(text)) return '书店+咖啡';
+        if (/酒吧|酒馆|精酿|日咖夜酒|早C晚A/.test(text)) return '日咖夜酒';
+        if (/咖啡|咖啡厅|饮品|甜品/.test(text)) return '纯咖啡';
         return '';
       },
 
@@ -6446,16 +6442,40 @@
 
       getExtractedImages(data = {}) {
         const source = data.data || data;
-        const values = [
+        const values = this.collectImageValues([
           ...(Array.isArray(source.images) ? source.images : []),
           ...(Array.isArray(source.venue?.images) ? source.venue.images : []),
-          ...(Array.isArray(source.note?.images) ? source.note.images : [])
-        ];
+          ...(Array.isArray(source.note?.images) ? source.note.images : []),
+          source.note,
+          source.venue,
+          source.raw,
+          data
+        ]);
         return [...new Set(values.map((item) => {
           if (typeof item === 'string') return this.normalizeImageUrl(item);
           if (!item || typeof item !== 'object') return '';
-          return this.normalizeImageUrl(item.url || item.src || item.imageUrl || item.image_url);
+          return this.normalizeImageUrl(item.url || item.src || item.imageUrl || item.image_url || item.urlDefault || item.url_default || item.originUrl || item.origin_url);
         }).filter(Boolean))];
+      },
+
+      collectImageValues(value, output = [], seen = new Set(), depth = 0, imageContext = false) {
+        if (!value || depth > 6 || output.length >= 80) return output;
+        if (typeof value === 'string') {
+          if (imageContext || /https?:\/\//i.test(value)) output.push(value);
+          return output;
+        }
+        if (typeof value !== 'object' || seen.has(value)) return output;
+        seen.add(value);
+        if (Array.isArray(value)) {
+          value.forEach((item) => this.collectImageValues(item, output, seen, depth + 1, imageContext));
+          return output;
+        }
+        Object.entries(value).forEach(([key, item]) => {
+          const isImageKey = /(image|images|photo|photos|pic|picture|cover|urlDefault|url_default|originUrl|origin_url|originalUrl|original_url)/i.test(key)
+            && !/(avatar|icon|logo|user)/i.test(key);
+          if (isImageKey || imageContext) this.collectImageValues(item, output, seen, depth + 1, isImageKey || imageContext);
+        });
+        return output;
       },
 
       normalizeVenue(data = {}) {
@@ -6470,13 +6490,12 @@
         const food = toArray(source.food || source.foods || source.menuItems || source.menu_items);
         const business = toArray(source.business || source.businessType || source.business_type);
         const pet = toArray(source.pet || source.pets);
-        const service = this.uniqueArray([
+        const service = [...new Set([
           ...toArray(source.service || source.services || source.policy || source.policies),
           ...pet
-        ]);
-        const knownTagOptions = ['安静', '禁烟', '靠窗', '插座', '大桌', '音乐', '卫生间'];
+        ])];
         const tags = [...new Set([
-          ...toArray(source.tags).filter((tag) => knownTagOptions.includes(tag)),
+          ...toArray(source.tags),
           ...environment,
           ...device
         ])];
@@ -6558,7 +6577,7 @@
           customTags: this.extractCustomTags(text),
           menuInfo: this.extractMenuInfo(lines),
           membershipInfo: this.extractMembershipInfo(lines),
-          notes: text,
+          notes: this.extractNotes(text),
           images: [],
           visitCount: 0,
           createdAt: new Date().toISOString().slice(0, 10),
@@ -6567,7 +6586,7 @@
       },
 
       applyToVenue(venue, rawText, extractedVenue = null) {
-        const extracted = extractedVenue || this.extractVenue(rawText);
+        const extracted = this.cleanVenueFields(extractedVenue || this.extractVenue(rawText));
         const nextVenue = { ...venue };
         const mergeText = (field) => {
           if (extracted[field] && !nextVenue[field]) nextVenue[field] = extracted[field];
@@ -6611,20 +6630,20 @@
           nextVenue.geoPlace = extracted.geoPlace;
         }
         nextVenue.images = this.uniqueArray([...(nextVenue.images || []), ...(extracted.images || [])]);
-        return nextVenue;
+        return this.cleanVenueFields(nextVenue);
       },
 
       applyPoiToVenue(baseVenue = {}, currentVenue = {}, poiVenue = {}) {
         const nextVenue = { ...currentVenue };
-        const baseHasText = (field) => Boolean(String(baseVenue[field] || '').trim());
-        if (poiVenue.name && (!baseVenue.name || this.isPlaceholderName(baseVenue.name))) {
+        if (poiVenue.name) {
           nextVenue.name = poiVenue.name;
         }
-        if (poiVenue.address && (!baseHasText('address') || !this.isLikelyAddress(baseVenue.address))) {
+        if (poiVenue.address) {
           nextVenue.address = poiVenue.address;
         }
-        if (poiVenue.hours && !baseHasText('hours')) {
-          nextVenue.hours = poiVenue.hours;
+        const poiHours = this.sanitizeHours(poiVenue.hours);
+        if (poiHours) {
+          nextVenue.hours = poiHours;
         }
         if ((Number(poiVenue.price?.amount) || poiVenue.price?.text) && !Number(baseVenue.price?.amount)) {
           nextVenue.price = poiVenue.price;
@@ -6655,11 +6674,12 @@
         if (poiVenue.notes) {
           nextVenue.notes = this.mergeTextBlock(nextVenue.notes, poiVenue.notes);
         }
-        return nextVenue;
+        return this.cleanVenueFields(nextVenue);
       },
 
       mergeExtractedVenue(primary = {}, fallback = {}) {
-        const merged = { ...primary };
+        const merged = { ...this.cleanVenueFields(primary) };
+        fallback = this.cleanVenueFields(fallback);
         ['name', 'hours', 'menuInfo', 'membershipInfo', 'notes'].forEach((field) => {
           if (!merged[field] && fallback[field]) merged[field] = fallback[field];
         });
@@ -6692,7 +6712,7 @@
         ]);
         merged.images = this.uniqueArray([...(merged.images || []), ...(fallback.images || [])]);
         merged.notes = this.mergeTextBlock(merged.notes, fallback.notes);
-        return merged;
+        return this.cleanVenueFields(merged);
       },
 
       mergeTextBlock(current = '', incoming = '') {
@@ -6702,6 +6722,55 @@
         if (!currentText) return incomingText;
         if (currentText.includes(incomingText) || incomingText.includes(currentText)) return currentText.length >= incomingText.length ? currentText : incomingText;
         return `${currentText}\n${incomingText}`;
+      },
+
+      cleanVenueFields(venue = {}) {
+        const nextVenue = { ...venue };
+        const noteText = String(nextVenue.notes || '').trim();
+        const deviceValues = nextVenue.device || [];
+        const serviceLikeDevice = deviceValues.filter((item) => /Wi-?Fi|无线|停车|宠物|抽烟|吸烟|禁烟|地铁|交通|服务态度/.test(item));
+        const trueDeviceValues = deviceValues.filter((item) => !serviceLikeDevice.includes(item));
+        const serviceFromPet = this.uniqueArray([...(nextVenue.service || []), ...(nextVenue.pet || []), ...serviceLikeDevice]);
+        nextVenue.environment = this.uniqueArray([...(nextVenue.environment || []), ...this.extractEnvironment(noteText)]);
+        nextVenue.device = this.uniqueArray([...trueDeviceValues, ...this.extractDevice(noteText)]);
+        nextVenue.food = this.uniqueArray([...(nextVenue.food || []), ...this.extractFood(noteText)]);
+        nextVenue.business = this.uniqueArray([...(nextVenue.business || []), ...this.extractBusiness(noteText)]);
+        nextVenue.service = this.uniqueArray([...serviceFromPet, ...this.extractService(noteText)]);
+        nextVenue.pet = [];
+        nextVenue.hours = this.sanitizeHours(nextVenue.hours);
+        if (/不适合自习|不建议自习|自习建议选择.*专门/.test(noteText) && !/不适合自习/.test(nextVenue.sceneType || '')) {
+          nextVenue.sceneType = nextVenue.sceneType && nextVenue.sceneType !== '其他'
+            ? `${nextVenue.sceneType}；不适合自习`
+            : '不适合自习';
+        }
+        nextVenue.notes = this.extractBusinessStatus(noteText);
+        nextVenue.tags = this.uniqueArray([...(nextVenue.tags || []), ...(nextVenue.environment || []), ...(nextVenue.device || [])]);
+        nextVenue.customTags = this.uniqueArray([
+          ...(nextVenue.customTags || []),
+          ...(nextVenue.food || []),
+          ...(nextVenue.business || []),
+          ...(nextVenue.service || [])
+        ]);
+        return nextVenue;
+      },
+
+      sanitizeHours(value = '') {
+        const text = String(value || '')
+          .replace(/[—–－~～]/g, '-')
+          .replace(/：/g, ':')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!text) return '';
+        const hasWeek = /周[一二三四五六日末]|星期[一二三四五六日天]|工作日|每天|每日|全年|节假日/.test(text);
+        const hasRange = /\d{1,2}:\d{2}\s*(?:-|至|到)\s*\d{1,2}:\d{2}/.test(text);
+        const isRelativeStatus = /^(?:次日|明日|明天|今天|今日)|(?:开始营业|营业中|休息中|已打烊|打烊|闭店|暂停营业)/.test(text);
+        if (isRelativeStatus && !hasWeek && !hasRange) return '';
+        return text;
+      },
+
+      extractBusinessStatus(text = '') {
+        const status = String(text || '').match(/(正常营业|暂停营业|休息中|已打烊|打烊|闭店|搬迁(?:新址)?|停业|歇业)/)?.[1] || '';
+        return status ? `营业状态：${status}` : '';
       },
 
       isPlaceholderName(value) {
@@ -6795,12 +6864,18 @@
 
       extractHours(text, lines) {
         const cleanLines = lines.map((line) => this.stripSourcePrefix(line));
-        const hourLine = cleanLines.find((line) => /(营业|时间|开放|周一|周二|周三|周四|周五|周六|周日|\d{1,2}[:：]\d{2})/.test(line));
-        if (!hourLine) return '';
-        const range = hourLine.match(/(\d{1,2}[:：]\d{2})\s*[-~—至到]\s*(\d{1,2}[:：]\d{2})/);
-        if (range) return `${range[1].replace('：', ':')}-${range[2].replace('：', ':')}`;
+        const hourLines = cleanLines
+          .filter((line) => /(营业|开放|时间|周一|周二|周三|周四|周五|周六|周日|周末|星期|每天|每日)/.test(line))
+          .filter((line) => /(\d{1,2}[:：]\d{2}|休息|关闭|打烊|闭店|全天)/.test(line))
+          .map((line) => line
+            .replace(/^(营业时间|时间|开放时间)[:：\s]*/, '')
+            .replace(/[—–－~～]/g, '-')
+            .replace(/：/g, ':')
+            .trim())
+          .filter(Boolean);
+        if (hourLines.length) return this.uniqueArray(hourLines).slice(0, 3).join('；');
         const times = text.match(/\d{1,2}[:：]\d{2}/g);
-        return times?.length >= 2 ? `${times[0].replace('：', ':')}-${times[1].replace('：', ':')}` : hourLine.trim();
+        return times?.length >= 2 ? `${times[0].replace('：', ':')}-${times[1].replace('：', ':')}` : '';
       },
 
       stripSourcePrefix(line) {
@@ -6819,10 +6894,10 @@
             text: rangeMatch[0].trim()
           };
         }
-        const priceMatch = text.match(/(?:日卡|单日|全天|人均|价格|单价|￥|¥)?\s*(\d{1,4})\s*(?:元|块)\s*\/?\s*(日|天|时|小时|杯|次|人)?/);
+        const priceMatch = text.match(/(?:日卡|单日|全天|人均|均价|价格|单价|￥|¥)?\s*(\d{1,4})\s*(?:元|块|r|R)\s*\/?\s*(日|天|时|小时|杯|次|人)?/);
         if (!priceMatch) return { amount: 0, unit: '日', text: '' };
         const unitMap = { 天: '日', 小时: '时' };
-        const unit = unitMap[priceMatch[2]] || priceMatch[2] || (/人均/.test(priceMatch[0]) ? '人' : '次');
+        const unit = unitMap[priceMatch[2]] || priceMatch[2] || (/人均/.test(priceMatch[0]) ? '人' : (/饮品均价|咖啡.*均价|饮品|咖啡|杯/.test(text) ? '杯' : '次'));
         return {
           amount: Number(priceMatch[1]) || 0,
           unit,
@@ -6832,28 +6907,51 @@
 
       extractEnvironment(text) {
         const values = [];
-        if (/安静|自习|学习|办公|小坐|舒服/.test(text)) values.push('安静');
-        if (/禁烟|无烟|不吸烟/.test(text)) values.push('禁烟');
-        if (/靠窗|窗边|窗|采光|阳光/.test(text)) values.push('靠窗');
+        if (/安静|宁静|静谧|专注|自习|学习|办公|看书/.test(text)) values.push('整体宁静');
+        if (/吵|嘈杂|喧闹|聊天声|人声|爆满|满座|人多|人很多|排队/.test(text)) values.push(/周末|周六|周日/.test(text) ? '周末人多' : '人多偏吵');
+        if (/采光|自然光|阳光|明亮|光线好|光线很棒/.test(text)) values.push('自然光充足');
+        if (/天黑|晚上|夜晚|光线暗|有点暗|偏暗|昏暗/.test(text)) values.push('光线偏暗');
+        if (/温馨|暖色|暖光|温暖/.test(text)) values.push('色彩温暖');
+        if (/复古|老洋房|民国|中古/.test(text)) values.push('复古风格');
+        if (/日式|原木|木质/.test(text)) values.push('日式原木感');
+        if (/简洁|极简|简约/.test(text)) values.push('复古简洁');
+        if (/宽敞|空间大|空间感|两层|2层|三层|3层/.test(text)) values.push('空间宽敞');
+        if (/局促|拥挤|狭小|位置挤/.test(text)) values.push('略显局促');
+        if (/咖啡香|香气|闻起来|味道/.test(text)) values.push('咖啡香');
+        const timeScene = text.match(/(?:周[一二三四五六日末]|星期[一二三四五六日天]|工作日|周末)?\s*(?:上午|中午|下午|晚上|天黑后|夜间)\s*\d{0,2}点?/);
+        if (timeScene?.[0]) values.push(`到店时段：${timeScene[0].trim()}`);
         return this.uniqueArray(values);
       },
 
       extractDevice(text) {
         const values = [];
-        if (/插座|充电/.test(text)) values.push('插座');
-        if (/大桌|长桌|桌子大|桌位/.test(text)) values.push('大桌');
-        if (/音乐|歌单|bgm|BGM/.test(text)) values.push('音乐');
-        if (/卫生间|洗手间|厕所/.test(text)) values.push('卫生间');
+        if (/座位宽敞|坐得开|不挤|座位间距/.test(text)) values.push('座位宽敞');
+        if (/座位窄|位置挤|座位少|座位有限|只能容纳|六七桌/.test(text)) values.push('座位偏窄');
+        if (/椅子舒服|座椅舒服|沙发|靠垫/.test(text)) values.push('座位舒适');
+        if (/椅子硬|座椅硬/.test(text)) values.push('椅子偏硬');
+        if (/楼梯.*陡|楼梯很陡|楼梯偏陡/.test(text)) values.push('楼梯较陡');
+        if (/空调冷|空调偏冷/.test(text)) values.push('空调偏冷');
+        if (/空调热|闷热|温度高/.test(text)) values.push('空调偏热');
+        if (/窗景|窗边|靠窗|窗户|大窗|落地窗/.test(text)) values.push('有窗景');
+        if (/树荫|树影|绿荫|绿化/.test(text)) values.push('有树荫');
+        if (/大桌|长桌|桌子大/.test(text)) values.push('大桌');
+        const tableSize = text.match(/\d{1,2}\s*[-到至]\s*\d{1,2}\s*人桌/);
+        if (tableSize?.[0]) values.push(tableSize[0].replace(/\s+/g, ''));
+        if (/每个座位.*插座|每座.*插座|插座.*每个座位/.test(text)) values.push('每座有插座');
+        else if (/插座不多|插座不算多|插座少|不是每个位置|并非每个位置|电源少/.test(text)) values.push('插座不多');
+        else if (/插座|充电|电源/.test(text)) values.push('有插座');
+        if (/卫生间|洗手间|厕所/.test(text)) values.push(/干净|自动马桶|马桶垫/.test(text) ? '洗手间干净' : '洗手间');
         return this.uniqueArray(values);
       },
 
       extractFood(text) {
-        const matches = text.match(/柠檬巴斯克|巴斯克|苹果肉桂茶|芝士流心可颂|苹果肉桂卷|鸡肉沙拉|披萨|抹茶combo|抹茶拿铁|焙茶拿铁|美式|拿铁|咖啡|甜点|甜品|蛋糕|茶/g) || [];
+        const matches = text.match(/手冲|特调|风味咖啡|特色咖啡|冰美式|美式|拿铁|抹茶拿铁|焙茶拿铁|咖啡|苹果肉桂茶|茶|气泡水|苏打|薯条|三明治|贝果|披萨|简餐|轻食|鸡肉沙拉|柠檬巴斯克|巴斯克|芝士流心可颂|苹果肉桂卷|可颂|甜点|甜品|蛋糕|冰激凌|Gelato/gi) || [];
         return this.uniqueArray(matches).slice(0, 8);
       },
 
       extractBusiness(text) {
-        if (/日咖夜酒|咖啡\s*\+\s*酒|咖啡和酒|咖啡.?酒/.test(text)) return ['日咖夜酒'];
+        if (/狗咖|宠物咖啡|狗狗咖啡/.test(text)) return ['狗咖'];
+        if (/日咖夜酒|早C晚A|晚上.*酒|夜间.*酒|晚上.*酒吧|咖啡\s*\+\s*酒|咖啡和酒/.test(text)) return ['日咖夜酒'];
         if (/书店|书房|图书/.test(text) && /咖啡/.test(text)) return ['书店+咖啡'];
         if (/咖啡|拿铁|美式|饮品|茶/.test(text)) return ['纯咖啡'];
         return [];
@@ -6868,12 +6966,19 @@
 
       extractService(text) {
         const values = [];
+        if (/Wi-?Fi|无线网|无线网络|网速/.test(text)) values.push(/网差|网速慢|Wi-?Fi.*慢/.test(text) ? 'Wi-Fi较弱' : 'Wi-Fi');
+        if (/服务态度好|服务好|店员.*好|店员.*贴心|姐姐.*送/.test(text)) values.push('服务态度好');
+        if (/服务差|态度差|不耐烦/.test(text)) values.push('服务态度一般');
+        if (/宠物友好|可带宠物|带狗|带猫/.test(text)) values.push('宠物友好');
+        if (/不可携带宠物|不能带宠物|禁止宠物/.test(text)) values.push('不可携带宠物');
+        if (/可抽烟|允许抽烟|吸烟区/.test(text)) values.push('可抽烟');
+        if (/禁烟|无烟|不吸烟/.test(text)) values.push('禁烟');
+        if (/付费停车|停车收费|收费停车/.test(text)) values.push('付费停车');
+        else if (/停车|车位|停车位/.test(text)) values.push('有停车位');
+        if (/地铁|公交|交通方便|交通便利|\d+号线|站[A-Z0-9]*口|口出|步行?\d+\s*m|走\d+\s*m/.test(text)) values.push('交通便利');
         if (/免费柠檬水|柠檬水/.test(text)) values.push('免费柠檬水');
         if (/免费自取水|自取水|免费饮水|饮用水/.test(text)) values.push('免费自取水');
         if (/纸巾|擦手纸|卫生纸/.test(text)) values.push('提供纸巾');
-        if (/马桶垫|一次性马桶垫/.test(text)) values.push('提供马桶垫');
-        if (/宠物友好|可带宠物|带狗|带猫/.test(text)) values.push('宠物友好');
-        if (/不可携带宠物|不能带宠物|禁止宠物/.test(text)) values.push('不可携带宠物');
         if (/无需预约|不用预约/.test(text)) values.push('无需预约');
         if (/现场等位|排队|等位/.test(text)) values.push('需现场等位');
         return this.uniqueArray([...values, ...this.extractPet(text)]);
@@ -6892,6 +6997,10 @@
         if (/露天|户外|小院|院子/.test(text)) tags.push('露天位');
         if (/老洋房|洋房|民国老建筑/.test(text)) tags.push('老洋房');
         return this.uniqueArray(tags);
+      },
+
+      extractNotes(text) {
+        return this.extractBusinessStatus(text);
       },
 
       extractMenuInfo(lines) {

@@ -253,7 +253,7 @@ function parseDianpingCurlRequest(curlText) {
     if (cookie) headers.Cookie = cookie;
   }
 
-  return {
+  const venue = {
     url,
     headers: normalizeDianpingMobileHeaders(headers),
     requestMode: 'curl-compact'
@@ -607,15 +607,7 @@ function normalizeDianpingDetailVenue(detail = {}) {
   const services = normalizeArray(detail.services);
   const recommendations = normalizeArray(detail.recommendations);
   const category = String(detail.category || '').trim();
-  const notes = [
-    detail.rating ? `大众点评评分：${detail.rating}` : '',
-    detail.reviewCount ? `评论数：${detail.reviewCount}` : '',
-    detail.scoreDetail ? `评分明细：${detail.scoreDetail}` : '',
-    detail.rankText ? `榜单：${detail.rankText}` : '',
-    detail.statusText ? `营业状态：${detail.statusText}` : '',
-    detail.distanceText ? `交通：${detail.distanceText}` : '',
-    services.length ? `服务：${services.join('、')}` : ''
-  ].filter(Boolean).join('\n');
+  const notes = detail.statusText ? `营业状态：${detail.statusText}` : '';
   return {
     name: detail.name || '',
     address: detail.address || '',
@@ -626,9 +618,10 @@ function normalizeDianpingDetailVenue(detail = {}) {
       text: priceText
     },
     environment: [],
-    device: services.filter((item) => /插座|Wi-?Fi|无线|停车|卫生间|宠物/i.test(item)),
+    device: services.filter((item) => /插座|卫生间|洗手间|厕所|桌|座|窗|空调/i.test(item)),
     food: recommendations,
     business: category ? [category] : [],
+    service: services.filter((item) => /Wi-?Fi|无线|停车|宠物|吸烟|抽烟|禁烟|地铁|交通|服务/i.test(item)),
     pet: uniqueArray([
       services.some((item) => /猫/.test(item)) ? '猫' : '',
       services.some((item) => /狗/.test(item)) ? '狗' : ''
@@ -654,7 +647,7 @@ function mergeVenueWithFallback(primary, fallback) {
   if ((!Number(merged.price?.amount) && !merged.price?.text) && (Number(fallback.price?.amount) || fallback.price?.text)) {
     merged.price = fallback.price;
   }
-  ['environment', 'device', 'food', 'business', 'pet', 'tags', 'customTags', 'images'].forEach((field) => {
+  ['environment', 'device', 'food', 'business', 'service', 'pet', 'tags', 'customTags', 'images'].forEach((field) => {
     merged[field] = uniqueArray([...(merged[field] || []), ...(fallback[field] || [])]);
   });
   if (fallback.notes && merged.notes && !merged.notes.includes(fallback.notes)) {
@@ -858,22 +851,25 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
         {
           role: 'system',
           content: [
-            'You are the venue information extractor for PickPick.',
-            'Return JSON only. Do not explain.',
-            'Extract one primary venue from lifestyle platform content, such as Xiaohongshu or Dianping.',
-            'Return values in the same language as the source text.',
-            'Use empty strings, empty arrays, or 0 for unknown fields.',
-            'Do not invent facts. Only fill fields supported by the source text.',
-            'If the source says a feature is missing, scarce, unavailable, inconvenient, noisy, smoky, or otherwise negative, do not add it as a positive environment/device/tag. Put that caveat in notes.',
-            'Classify venue facts into these PickPick fields:',
-            'environment: only use explicit values like 安静, 禁烟, 靠窗.',
-            'device: only use explicit values like 插座, 大桌, 音乐, 卫生间.',
-            'food: food or drink names explicitly mentioned, such as 柠檬巴斯克, 抹茶拿铁.',
-            'business: venue business type, such as 纯咖啡, 日咖夜酒, 书店+咖啡.',
-            'pet: only use 猫 or 狗 when explicitly mentioned.',
-            'price.amount must be a number. price.unit should be a short unit from the source text.',
-            'price.text should keep the original price phrase when available.',
-            'tags and customTags are optional backward-compatible fields.'
+            '你是 PickPick 的商家信息结构化助手。',
+            '只返回 JSON，不要解释。',
+            '从小红书、大众点评、高德/POI 等文本中提取同一个商家的真实信息。',
+            '只基于原文和 existingVenue 提供的信息提取，不得编造。',
+            '未知字段使用空字符串、空数组或 0。',
+            '名称、地点、营业时间三路来源都要尽量找回；冲突时名称、地点、营业时间优先高德/大众点评官方 POI 信息，时间必须保留最详细版本，例如“周一至周五 08:00-18:00；周六至周日 09:00-19:00”。',
+            'hours 禁止填写“次日12:00开始营业”“今日营业中”“营业中”“休息中”等相对状态；如果只有这种相对状态而没有周几/日期/时间段，则 hours 为空。',
+            '价格优先采用大众点评/官方人均或召回记录；冲突时按大众点评，不要根据区域猜价格。',
+            '不要把平台原文整段复制到 notes。',
+            '同一事实只放入最合适字段，不能重复。',
+            'sceneType: 可以按事实自定义，描述适合的场景/用途，例如“适合学习办公”“适合聚餐拍照”“不适合长时间办公”。',
+            'environment: 只放环境氛围和感官描述，包括视觉/听觉/嗅觉/味觉、光线与色彩、空间与比例、动态与静态、整体宁静或喧闹、当时到店时间或高峰时段。例：自然光充足、光线偏暗、色彩温暖、空间宽敞、周末下午人多、咖啡香、整体宁静。',
+            'device: 只放硬件和使用条件，包括座位宽敞/狭窄、舒适度、空调温度、窗景、树荫、桌子大小、7-10人桌、插座有无/是否每座都有/是否不多、洗手间等。',
+            'food: 只放饮品和食物品类或明确菜品，包括手冲、特调、风味咖啡、特色咖啡、茶、气泡水、薯条、三明治、贝果、披萨、蛋糕、冰激凌等。',
+            'business: 只从或归纳为“纯咖啡、书店+咖啡、日咖夜酒、狗咖”等业态；日咖夜酒必须有咖啡/酒的时段区别或明确夜间酒吧描述。',
+            'service: 只放服务与政策/便利性，包括 Wi-Fi、服务态度、宠物是否允许、能否抽烟、停车位、地铁/交通便利性。',
+            '如果文本说某项不足、没有、偏吵、插座少、座位窄、不可带宠物等，不要写成正向标签；保留原意，例如“插座不多”“座位偏窄”“不可携带宠物”。',
+            'notes: 只能填写营业状态，格式为“营业状态：正常营业/暂停营业/休息中/已打烊/搬迁新址”等；没有营业状态则为空。电话、亮点、槽点、宠物、停车、楼梯、价格变化、建议事项都不要放 notes，要归入 service/device/environment/price/sceneType 等对应字段。',
+            'price.amount 必须是数字；price.unit 使用“人/杯/次/日”等短单位；price.text 保留原始价格短语。'
           ].join('\n')
         },
         {
@@ -890,6 +886,7 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
                 food: [],
                 price: { amount: 0, unit: '', text: '' },
                 business: [],
+                service: [],
                 pet: [],
                 tags: [],
                 customTags: [],
@@ -922,14 +919,17 @@ async function extractVenueWithDeepSeek(sourceText, inputVenue, debug) {
 
 function normalizeVenue(value = {}) {
   const price = value.price || {};
-  const environment = normalizeArray(value.environment || value.environments);
-  const device = normalizeArray(value.device || value.devices || value.equipment);
+  const noteText = String(value.notes || '').trim();
+  const environment = uniqueArray([...normalizeArray(value.environment || value.environments), ...extractEnvironmentFacts(noteText)]);
+  const rawDevice = uniqueArray([...normalizeArray(value.device || value.devices || value.equipment), ...extractDeviceFacts(noteText)]);
+  const serviceLikeDevice = rawDevice.filter((item) => /Wi-?Fi|无线|停车|宠物|抽烟|吸烟|禁烟|地铁|交通|服务态度/.test(item));
+  const device = rawDevice.filter((item) => !serviceLikeDevice.includes(item));
   const food = normalizeArray(value.food || value.foods || value.menuItems || value.menu_items);
   const business = normalizeArray(value.business || value.businessType || value.business_type || value.businesses);
+  const service = uniqueArray([...normalizeArray(value.service || value.services || value.policy || value.policies), ...serviceLikeDevice, ...extractServiceFacts(noteText)]);
   const pet = normalizeArray(value.pet || value.pets);
-  const knownTagOptions = ['安静', '禁烟', '靠窗', '插座', '大桌', '音乐', '卫生间'];
   const tags = uniqueArray([
-    ...normalizeArray(value.tags).filter((tag) => knownTagOptions.includes(tag)),
+    ...normalizeArray(value.tags),
     ...environment,
     ...device
   ]);
@@ -937,6 +937,7 @@ function normalizeVenue(value = {}) {
     ...normalizeArray(value.customTags || value.custom_tags),
     ...food,
     ...business,
+    ...service,
     ...pet
   ]);
   return {
@@ -952,15 +953,77 @@ function normalizeVenue(value = {}) {
     device,
     food,
     business,
+    service,
     pet,
     tags,
     customTags,
     menuInfo: String(value.menuInfo || value.menu_info || '').trim(),
     membershipInfo: String(value.membershipInfo || value.membership_info || '').trim(),
-    notes: String(value.notes || '').trim(),
-    sceneType: String(value.sceneType || value.scene_type || '').trim(),
+    notes: extractBusinessStatus(value.notes || ''),
+    sceneType: normalizeSceneTypeFromNotes(String(value.sceneType || value.scene_type || '').trim(), noteText),
     images: normalizeArray(value.images || value.photos)
   };
+  venue.hours = sanitizeHours(venue.hours);
+  return venue;
+}
+
+function sanitizeHours(value = '') {
+  const text = String(value || '')
+    .replace(/[—–－~～]/g, '-')
+    .replace(/：/g, ':')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return '';
+  const hasWeek = /周[一二三四五六日末]|星期[一二三四五六日天]|工作日|每天|每日|全年|节假日/.test(text);
+  const hasRange = /\d{1,2}:\d{2}\s*(?:-|至|到)\s*\d{1,2}:\d{2}/.test(text);
+  const isRelativeStatus = /^(?:次日|明日|明天|今天|今日)|(?:开始营业|营业中|休息中|已打烊|打烊|闭店|暂停营业)/.test(text);
+  if (isRelativeStatus && !hasWeek && !hasRange) return '';
+  return text;
+}
+
+function extractBusinessStatus(value = '') {
+  const status = String(value || '').match(/(正常营业|暂停营业|休息中|已打烊|打烊|闭店|搬迁(?:新址)?|停业|歇业)/)?.[1] || '';
+  return status ? `营业状态：${status}` : '';
+}
+
+function extractEnvironmentFacts(value = '') {
+  const text = String(value || '');
+  const values = [];
+  if (/安静|宁静|静谧/.test(text)) values.push('整体宁静');
+  if (/吵|嘈杂|喧闹|人多|排队|满座/.test(text)) values.push('人多偏吵');
+  if (/老洋房|复古|民国/.test(text)) values.push('老洋房');
+  if (/光线暗|偏暗|昏暗/.test(text)) values.push('光线偏暗');
+  return uniqueArray(values);
+}
+
+function extractDeviceFacts(value = '') {
+  const text = String(value || '');
+  const values = [];
+  if (/楼梯.*陡|楼梯很陡|楼梯偏陡/.test(text)) values.push('楼梯较陡');
+  if (/插座不多|插座不算多|插座少/.test(text)) values.push('插座不多');
+  if (/插座|电源|充电/.test(text) && !values.includes('插座不多')) values.push('有插座');
+  if (/座位窄|位置挤|座位少/.test(text)) values.push('座位偏窄');
+  return uniqueArray(values);
+}
+
+function extractServiceFacts(value = '') {
+  const text = String(value || '');
+  const values = [];
+  if (/可带宠物|宠物友好|允许宠物|带狗|带猫/.test(text)) values.push('宠物友好');
+  if (/不可携带宠物|不能带宠物|禁止宠物/.test(text)) values.push('不可携带宠物');
+  if (/付费停车|停车收费|收费停车/.test(text)) values.push('付费停车');
+  else if (/停车|车位|停车位/.test(text)) values.push('有停车位');
+  if (/Wi-?Fi|无线网|无线网络/.test(text)) values.push('Wi-Fi');
+  if (/禁烟|无烟|不吸烟/.test(text)) values.push('禁烟');
+  return uniqueArray(values);
+}
+
+function normalizeSceneTypeFromNotes(sceneType = '', notes = '') {
+  const base = sceneType || '';
+  if (/不适合自习|不建议自习|自习建议选择.*专门/.test(notes) && !/不适合自习/.test(base)) {
+    return base && base !== '其他' ? `${base}；不适合自习` : '不适合自习';
+  }
+  return base;
 }
 
 function normalizeArray(value) {
@@ -1057,6 +1120,7 @@ function hasVenueData(venue) {
     venue.device?.length ||
     venue.food?.length ||
     venue.business?.length ||
+    venue.service?.length ||
     venue.pet?.length ||
     venue.tags?.length ||
     venue.customTags?.length ||
